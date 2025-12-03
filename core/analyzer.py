@@ -309,7 +309,7 @@ class InstitutionalAIAnalyzer:
         
         return recommendations
 
-    def get_institution_submissions(self, institution_id: str) -> pd.DataFrame:
+def get_institution_submissions(self, institution_id: str) -> pd.DataFrame:
     """Get submissions for a specific institution"""
     try:
         query = '''
@@ -456,4 +456,5 @@ def generate_document_recommendations(self, mandatory_sufficiency: float) -> Lis
         recommendations.append("📊 Submit supporting documents for comprehensive assessment")
     
     return recommendations
+
 
