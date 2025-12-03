@@ -1,9 +1,9 @@
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
-
-# Existing analytical modules (unchanged)
 def create_performance_dashboard(analyzer):
     st.header("📊 Institutional Performance Analytics Dashboard")
     
@@ -205,42 +205,3 @@ def create_performance_dashboard(analyzer):
         use_container_width=True,
         height=400
     )
-    
-    # Institution Comparison Tool
-    st.subheader("🔍 Compare Institutions")
-    
-    # Select institutions to compare
-    institutions_list = current_year_data['institution_name'].tolist()
-    selected_institutions = st.multiselect(
-        "Select institutions to compare:",
-        institutions_list,
-        default=institutions_list[:3] if len(institutions_list) >= 3 else institutions_list
-    )
-    
-    if selected_institutions:
-        comparison_data = current_year_data[current_year_data['institution_name'].isin(selected_institutions)]
-        
-        # Create comparison chart
-        fig8 = px.bar(
-            comparison_data,
-            x='institution_name',
-            y=['performance_score', 'placement_rate', 'research_publications'],
-            title="Institution Comparison",
-            barmode='group'
-        )
-        fig8.update_layout(
-            xaxis_title="Institution",
-            yaxis_title="Score/Percentage/Count"
-        )
-        st.plotly_chart(fig8, use_container_width=True)
-        
-        # Show detailed comparison table
-        comparison_cols = [
-            'institution_name', 'performance_score', 'naac_grade', 'nirf_ranking',
-            'placement_rate', 'research_publications', 'student_faculty_ratio',
-            'financial_stability_score', 'risk_level'
-        ]
-        st.dataframe(
-            comparison_data[comparison_cols].set_index('institution_name'),
-            use_container_width=True
-        )
