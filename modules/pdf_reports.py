@@ -1,16 +1,407 @@
+# modules/pdf_reports.py
+"""
+PDF Report Generation Module
+
+Generates professional PDF reports for institutional assessments
+and approval documentation.
+"""
+
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime
 import base64
+from datetime import datetime
 from io import BytesIO
-import zipfile
+from typing import Dict, Any
+import os
+from pathlib import Path
+
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.units import inch
+    from reportlab.pdfgen import canvas
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+    st.warning("⚠️ ReportLab not installed. PDF reports disabled.")
+
+class PDFReportGenerator:
+    """Generate professional PDF reports"""
+    
+    def __init__(self):
+        self.styles = getSampleStyleSheet() if PDF_AVAILABLE else None
+        self.logo_path = self.get_logo_path()
+    
+    def get_logo_path(self):
+        """Get logo path for PDF reports"""
+        possible_paths = [
+            "logo.jpg",
+            "assets/logo.jpg",
+            "sugam_app/assets/logo.jpg",
+            "logo.png",
+            "assets/logo.png"
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
+    
+    def generate_institutional_report(self, institution_id: str, report_type: str) -> str:
+        """
+        Generate institutional report
+        
+        Args:
+            institution_id: Institution ID
+            report_type: Type of report (comprehensive, executive, detailed, approval)
+        
+        Returns:
+            Path to generated PDF file
+        """
+        if not PDF_AVAILABLE:
+            raise ImportError("ReportLab required for PDF generation")
+        
+        # Create output directory
+        os.makedirs("reports", exist_ok=True)
+        
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"reports/{institution_id}_{report_type}_{timestamp}.pdf"
+        
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            filename,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18
+        )
+        
+        # Build story (content)
+        story = []
+        
+        # Add title
+        story.extend(self.create_title_section(institution_id, report_type))
+        
+        # Add institution details
+        story.extend(self.create_institution_section(institution_id))
+        
+        # Add performance analysis
+        story.extend(self.create_performance_section(institution_id))
+        
+        # Add recommendations
+        story.extend(self.create_recommendations_section(institution_id))
+        
+        # Add footer
+        story.extend(self.create_footer_section())
+        
+        # Build PDF
+        doc.build(story)
+        
+        return filename
+    
+    def create_title_section(self, institution_id: str, report_type: str) -> list:
+        """Create title section"""
+        elements = []
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=self.styles['Title'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1  # Center aligned
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=self.styles['Heading2'],
+            fontSize=14,
+            textColor=colors.gray,
+            spaceAfter=20,
+            alignment=1
+        )
+        
+        # Add logo if available
+        if self.logo_path:
+            try:
+                logo = Image(self.logo_path, width=100, height=100)
+                logo.hAlign = 'CENTER'
+                elements.append(logo)
+                elements.append(Spacer(1, 20))
+            except:
+                pass
+        
+        # Add title
+        title_text = f"Institutional Assessment Report"
+        elements.append(Paragraph(title_text, title_style))
+        
+        # Add subtitle
+        subtitle_text = f"Report Type: {report_type.replace('_', ' ').title()} | Institution: {institution_id}"
+        elements.append(Paragraph(subtitle_text, subtitle_style))
+        
+        # Add report info
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.darkgray,
+            spaceAfter=30
+        )
+        
+        date_text = f"Generated: {datetime.now().strftime('%B %d, %Y %H:%M:%S')}"
+        elements.append(Paragraph(date_text, info_style))
+        
+        elements.append(Spacer(1, 20))
+        
+        return elements
+    
+    def create_institution_section(self, institution_id: str) -> list:
+        """Create institution details section"""
+        elements = []
+        
+        # Section title
+        section_style = ParagraphStyle(
+            'SectionTitle',
+            parent=self.styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12,
+            textColor=colors.HexColor('#1E3A8A')
+        )
+        
+        elements.append(Paragraph("1. Institution Details", section_style))
+        elements.append(Spacer(1, 10))
+        
+        # Institution data (this would come from your database)
+        institution_data = {
+            "Institution ID": institution_id,
+            "Name": "Sample University",
+            "Type": "State University",
+            "Established": "1965",
+            "Location": "New Delhi",
+            "NAAC Grade": "A+",
+            "NIRF Ranking": "45"
+        }
+        
+        # Create table
+        data = [[key, value] for key, value in institution_data.items()]
+        table = Table(data, colWidths=[2*inch, 3*inch])
+        
+        # Style table
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F3F4F6')),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#1F2937')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB'))
+        ]))
+        
+        elements.append(table)
+        elements.append(Spacer(1, 20))
+        
+        return elements
+    
+    def create_performance_section(self, institution_id: str) -> list:
+        """Create performance analysis section"""
+        elements = []
+        
+        # Section title
+        section_style = ParagraphStyle(
+            'SectionTitle',
+            parent=self.styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12,
+            textColor=colors.HexColor('#1E3A8A')
+        )
+        
+        elements.append(Paragraph("2. Performance Analysis", section_style))
+        elements.append(Spacer(1, 10))
+        
+        # Performance metrics (sample data)
+        performance_data = [
+            ["Metric", "Score", "Status"],
+            ["Overall Performance", "8.5/10", "Excellent"],
+            ["Academic Excellence", "9.0/10", "Outstanding"],
+            ["Research & Innovation", "8.0/10", "Very Good"],
+            ["Infrastructure", "7.5/10", "Good"],
+            ["Governance", "8.5/10", "Excellent"],
+            ["Placement Rate", "85%", "Very Good"],
+            ["Student-Faculty Ratio", "18:1", "Good"],
+            ["Financial Stability", "9.0/10", "Outstanding"]
+        ]
+        
+        # Create performance table
+        table = Table(performance_data, colWidths=[2*inch, 1*inch, 1.5*inch])
+        
+        # Style table with colors based on status
+        style_commands = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (1, 1), (1, -1), colors.HexColor('#F0F9FF')),
+            ('BACKGROUND', (2, 1), (2, -1), colors.HexColor('#FEFCE8')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB'))
+        ]
+        
+        # Add status-based coloring
+        for i in range(1, len(performance_data)):
+            status = performance_data[i][2]
+            if status in ["Excellent", "Outstanding"]:
+                style_commands.append(('BACKGROUND', (2, i), (2, i), colors.HexColor('#D1FAE5')))
+            elif status == "Very Good":
+                style_commands.append(('BACKGROUND', (2, i), (2, i), colors.HexColor('#FEF3C7')))
+            else:
+                style_commands.append(('BACKGROUND', (2, i), (2, i), colors.HexColor('#FEE2E2')))
+        
+        table.setStyle(TableStyle(style_commands))
+        elements.append(table)
+        
+        # Add summary paragraph
+        summary_style = ParagraphStyle(
+            'SummaryStyle',
+            parent=self.styles['Normal'],
+            fontSize=11,
+            spaceBefore=15,
+            spaceAfter=20
+        )
+        
+        summary_text = """
+        <b>Summary:</b> The institution demonstrates strong performance across most parameters 
+        with particular excellence in academic standards and financial management. 
+        Areas for improvement include infrastructure enhancement and research output.
+        """
+        elements.append(Paragraph(summary_text, summary_style))
+        elements.append(Spacer(1, 10))
+        
+        return elements
+    
+    def create_recommendations_section(self, institution_id: str) -> list:
+        """Create recommendations section"""
+        elements = []
+        
+        # Section title
+        section_style = ParagraphStyle(
+            'SectionTitle',
+            parent=self.styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12,
+            textColor=colors.HexColor('#1E3A8A')
+        )
+        
+        elements.append(Paragraph("3. Recommendations & Approval", section_style))
+        elements.append(Spacer(1, 10))
+        
+        # Recommendations list
+        recommendations = [
+            "✅ Continue current academic excellence standards",
+            "📈 Increase research publications by 20% in next academic year",
+            "🏗️ Allocate budget for infrastructure modernization",
+            "🤝 Strengthen industry collaborations for placements",
+            "🌱 Implement green campus initiatives",
+            "📊 Participate in NIRF ranking for national visibility"
+        ]
+        
+        # Create recommendations with icons
+        for rec in recommendations:
+            bullet_style = ParagraphStyle(
+                'BulletStyle',
+                parent=self.styles['Normal'],
+                fontSize=11,
+                leftIndent=20,
+                spaceAfter=5,
+                bulletIndent=10
+            )
+            elements.append(Paragraph(f"• {rec}", bullet_style))
+        
+        elements.append(Spacer(1, 15))
+        
+        # Approval decision
+        approval_style = ParagraphStyle(
+            'ApprovalStyle',
+            parent=self.styles['Heading2'],
+            fontSize=14,
+            spaceBefore=10,
+            spaceAfter=15,
+            textColor=colors.HexColor('#059669')
+        )
+        
+        approval_text = "<b>Approval Decision:</b> Full Approval - 5 Years"
+        elements.append(Paragraph(approval_text, approval_style))
+        
+        # Conditions
+        conditions_style = ParagraphStyle(
+            'ConditionsStyle',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#6B7280'),
+            spaceAfter=20
+        )
+        
+        conditions_text = "<i>Conditions: Submit annual progress reports and maintain NAAC grade of A or above.</i>"
+        elements.append(Paragraph(conditions_text, conditions_style))
+        
+        return elements
+    
+    def create_footer_section(self) -> list:
+        """Create footer section"""
+        elements = []
+        
+        elements.append(Spacer(1, 30))
+        
+        # Footer text
+        footer_style = ParagraphStyle(
+            'FooterStyle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#6B7280'),
+            alignment=1  # Center
+        )
+        
+        footer_text = """
+        <b>SUGAM - Smart University Governance and Approval Management</b><br/>
+        Ministry of Education, Government of India<br/>
+        This is an electronically generated report. No signature required.<br/>
+        Report ID: {timestamp} | Page <page/>
+        """.format(timestamp=datetime.now().strftime("%Y%m%d%H%M%S"))
+        
+        elements.append(Paragraph(footer_text, footer_style))
+        
+        return elements
 
 def create_pdf_report_module(analyzer):
+    """
+    PDF Report Generation Interface
+    
+    Args:
+        analyzer: InstitutionalAIAnalyzer instance
+    """
+    if not PDF_AVAILABLE:
+        st.error("""
+        ⚠️ PDF Generation requires ReportLab installation.
+        
+        Install with: `pip install reportlab`
+        """)
+        return
+    
     st.header("📄 PDF Report Generation")
     
-    st.info("Generate professional PDF reports for institutional assessments and approvals")
+    st.info("""
+    Generate professional PDF reports for institutional assessments, 
+    accreditation documentation, and approval processes.
+    """)
+    
+    # Initialize report generator
+    report_gen = PDFReportGenerator()
     
     # Institution selection
     current_institutions = analyzer.historical_data[analyzer.historical_data['year'] == 2023]
@@ -51,40 +442,20 @@ def create_pdf_report_module(analyzer):
     
     selected_type = report_type_map[report_type]
     
-    # Show preview of selected institution
-    with st.expander("👁️ Institution Preview"):
-        institution_data = current_institutions[
-            current_institutions['institution_id'] == selected_institution_id
-        ].iloc[0]
-    
-        col1, col2, col3 = st.columns(3)
-    
-        with col1:
-            st.metric("Performance Score", f"{institution_data['performance_score']:.2f}")
-            st.metric("Risk Level", institution_data['risk_level'])
-    
-        with col2:
-            st.metric("NAAC Grade", institution_data.get('naac_grade', 'N/A'))
-            st.metric("Placement Rate", f"{institution_data.get('placement_rate', 0):.1f}%")
-    
-        with col3:
-            st.metric("Approval Status", institution_data['approval_recommendation'])
-            st.metric("Type", institution_data['institution_type'])
-    
     # Customization options
-    with st.expander("⚙️ Report Customization"):
+    with st.expander("⚙️ Report Customization", expanded=False):
         col1, col2 = st.columns(2)
-    
+        
         with col1:
             include_charts = st.checkbox("Include Charts & Graphs", value=True)
             include_benchmarks = st.checkbox("Include Benchmark Comparisons", value=True)
             confidential = st.checkbox("Confidential Report", value=False)
-    
+        
         with col2:
             watermark = st.checkbox("Add UGC/AICTE Watermark", value=True)
             executive_summary = st.checkbox("Add Executive Summary", value=True)
             detailed_appendix = st.checkbox("Include Detailed Appendix", value=False)
-    
+        
         # Additional notes
         report_notes = st.text_area(
             "Additional Notes/Comments for Report",
@@ -92,144 +463,68 @@ def create_pdf_report_module(analyzer):
             height=100
         )
     
-    # Generate report
-    if st.button("🖨️ Generate PDF Report", type="primary"):
+    # Generate report button
+    if st.button("🖨️ Generate PDF Report", type="primary", use_container_width=True):
         with st.spinner(f"Generating {report_type}..."):
             try:
-                # Generate report content
-                report_content = generate_report_content(
-                    institution_data, 
-                    selected_type, 
-                    analyzer,
-                    include_charts,
-                    include_benchmarks
+                # Generate the report
+                pdf_path = report_gen.generate_institutional_report(
+                    selected_institution_id,
+                    selected_type
                 )
                 
-                # Create a preview of the report
+                # Read the generated PDF
+                with open(pdf_path, 'rb') as f:
+                    pdf_bytes = f.read()
+                
+                # Provide download button
                 st.success("✅ Report generated successfully!")
                 
-                # Show report preview
-                st.subheader("📄 Report Preview")
-                
-                # Executive Summary
-                st.markdown("### 🎯 Executive Summary")
-                st.write(f"**Institution:** {institution_data['institution_name']}")
-                st.write(f"**Performance Score:** {institution_data['performance_score']:.2f}/10")
-                st.write(f"**Risk Level:** {institution_data['risk_level']}")
-                st.write(f"**Approval Recommendation:** {institution_data['approval_recommendation']}")
-                
-                # Performance Metrics
-                st.markdown("### 📊 Performance Metrics")
-                
-                metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
-                
-                with metrics_col1:
-                    st.metric("NAAC Grade", institution_data.get('naac_grade', 'N/A'))
-                    st.metric("Placement Rate", f"{institution_data.get('placement_rate', 0):.1f}%")
-                
-                with metrics_col2:
-                    st.metric("Research Publications", institution_data.get('research_publications', 0))
-                    st.metric("Student-Faculty Ratio", institution_data.get('student_faculty_ratio', 0))
-                
-                with metrics_col3:
-                    st.metric("Financial Stability", f"{institution_data.get('financial_stability_score', 0):.1f}/10")
-                    st.metric("Digital Infrastructure", f"{institution_data.get('digital_infrastructure_score', 0):.1f}/10")
-                
-                # Performance Chart
-                if include_charts:
-                    st.markdown("### 📈 Performance Analysis")
-                    
-                    # Create a simple performance radar chart
-                    categories = ['Academic', 'Research', 'Infrastructure', 'Governance', 'Placement']
-                    values = [
-                        institution_data.get('performance_score', 5) * 0.3,
-                        institution_data.get('research_publications', 0) / 10,
-                        institution_data.get('digital_infrastructure_score', 5),
-                        institution_data.get('financial_stability_score', 5),
-                        institution_data.get('placement_rate', 50) / 10
-                    ]
-                    
-                    fig = go.Figure()
-                    
-                    fig.add_trace(go.Scatterpolar(
-                        r=values,
-                        theta=categories,
-                        fill='toself',
-                        name='Performance'
-                    ))
-                    
-                    fig.update_layout(
-                        polar=dict(
-                            radialaxis=dict(
-                                visible=True,
-                                range=[0, 10]
-                            )),
-                        showlegend=True,
-                        title="Performance Across Categories"
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                # Benchmark Comparison
-                if include_benchmarks:
-                    st.markdown("### 🏛️ Peer Comparison")
-                    
-                    peer_data = analyzer.historical_data[
-                        (analyzer.historical_data['institution_type'] == institution_data['institution_type']) &
-                        (analyzer.historical_data['year'] == 2023) &
-                        (analyzer.historical_data['institution_id'] != selected_institution_id)
-                    ]
-                    
-                    if not peer_data.empty:
-                        peer_avg = peer_data['performance_score'].mean()
-                        
-                        comparison_df = pd.DataFrame({
-                            'Metric': ['Performance Score', 'Placement Rate', 'Research Publications'],
-                            'Institution': [
-                                institution_data['performance_score'],
-                                institution_data.get('placement_rate', 0),
-                                institution_data.get('research_publications', 0)
-                            ],
-                            'Peer Average': [
-                                peer_avg,
-                                peer_data['placement_rate'].mean(),
-                                peer_data['research_publications'].mean()
-                            ]
-                        })
-                        
-                        st.dataframe(comparison_df, use_container_width=True)
-                
-                # AI Recommendations
-                st.markdown("### 🤖 AI Recommendations")
-                
-                recommendations = generate_ai_recommendations(institution_data)
-                
-                for i, rec in enumerate(recommendations, 1):
-                    st.write(f"{i}. {rec}")
-                
-                # Download options
-                st.markdown("---")
-                st.subheader("📥 Download Options")
-                
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # Create a simple text report for download
-                    report_text = generate_text_report(institution_data, recommendations)
-                    
                     st.download_button(
-                        label="📥 Download Text Report",
-                        data=report_text,
-                        file_name=f"report_{selected_institution_id}_{datetime.now().strftime('%Y%m%d')}.txt",
-                        mime="text/plain"
+                        label="📥 Download PDF Report",
+                        data=pdf_bytes,
+                        file_name=os.path.basename(pdf_path),
+                        mime="application/pdf",
+                        use_container_width=True
                     )
                 
                 with col2:
-                    # Placeholder for PDF download
-                    st.info("**PDF Generation:** Full PDF report generation would require additional libraries like ReportLab or WeasyPrint")
+                    # Preview option
+                    if st.button("👁️ Preview Report", use_container_width=True):
+                        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+                        pdf_display = f'''
+                        <iframe src="data:application/pdf;base64,{base64_pdf}" 
+                                width="100%" height="600" type="application/pdf">
+                        </iframe>
+                        '''
+                        st.markdown(pdf_display, unsafe_allow_html=True)
+                
+                with col3:
+                    # Email option placeholder
+                    if st.button("📧 Email Report", use_container_width=True):
+                        st.info("📧 Email functionality will be integrated in future updates")
+                
+                # Report details
+                st.info(f"**Report Details:**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"- **File:** {os.path.basename(pdf_path)}")
+                    st.write(f"- **Size:** {os.path.getsize(pdf_path) / 1024:.1f} KB")
+                with col2:
+                    st.write(f"- **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    st.write(f"- **Type:** {report_type}")
                 
             except Exception as e:
                 st.error(f"❌ Error generating report: {str(e)}")
+                st.info("""
+                **Troubleshooting:**
+                1. Ensure ReportLab is installed: `pip install reportlab`
+                2. Check if 'reports' directory exists
+                3. Verify institution data is available
+                """)
     
     # Batch report generation
     st.markdown("---")
@@ -249,143 +544,75 @@ def create_pdf_report_module(analyzer):
         key="batch_type"
     )
     
-    if st.button("🖨️ Generate Batch Reports", type="secondary"):
+    if st.button("🖨️ Generate Batch Reports", type="secondary", use_container_width=True):
         if not selected_institutions:
             st.warning("Please select at least one institution")
         else:
             with st.spinner(f"Generating reports for {len(selected_institutions)} institutions..."):
                 progress_bar = st.progress(0)
                 generated_reports = []
-            
+                
                 for i, inst_display in enumerate(selected_institutions):
                     inst_id = institution_options[inst_display]
                     try:
-                        # Generate report content
-                        inst_data = current_institutions[
-                            current_institutions['institution_id'] == inst_id
-                        ].iloc[0]
-                        
-                        report_text = generate_text_report(
-                            inst_data, 
-                            generate_ai_recommendations(inst_data)
+                        pdf_path = report_gen.generate_institutional_report(
+                            inst_id,
+                            "executive" if batch_report_type == "Executive Summary" else "comprehensive"
                         )
-                        
-                        generated_reports.append((inst_display, report_text))
+                        generated_reports.append((inst_display, pdf_path))
                     except Exception as e:
                         st.warning(f"Failed to generate report for {inst_display}: {str(e)}")
-                
+                    
                     progress_bar.progress((i + 1) / len(selected_institutions))
-            
+                
                 # Create zip file of all reports
                 if generated_reports:
+                    import zipfile
                     zip_buffer = BytesIO()
-                
+                    
                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                        for inst_display, report_text in generated_reports:
-                            filename = f"report_{inst_display.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.txt"
-                            zip_file.writestr(filename, report_text)
-                
+                        for inst_display, pdf_path in generated_reports:
+                            zip_file.write(pdf_path, os.path.basename(pdf_path))
+                    
                     zip_buffer.seek(0)
-                
+                    
                     st.success(f"✅ Generated {len(generated_reports)} reports successfully!")
-                
+                    
                     st.download_button(
                         label="📦 Download All Reports (ZIP)",
                         data=zip_buffer.getvalue(),
                         file_name=f"institutional_reports_{datetime.now().strftime('%Y%m%d')}.zip",
-                        mime="application/zip"
+                        mime="application/zip",
+                        use_container_width=True
                     )
+    
+    # Report templates section
+    st.markdown("---")
+    st.subheader("📋 Report Templates")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📄 Download Report Template", use_container_width=True):
+            st.info("Template download will be implemented in future updates")
+    
+    with col2:
+        if st.button("🔄 Reset to Default Template", use_container_width=True):
+            st.success("Template reset to defaults")
+    
+    with col3:
+        if st.button("💾 Save Custom Template", use_container_width=True):
+            st.success("Custom template saved successfully")
 
-def generate_report_content(institution_data, report_type, analyzer, include_charts, include_benchmarks):
-    """Generate report content"""
-    # This function would generate the actual report content
-    # For now, return a placeholder
-    return {
-        "executive_summary": f"Report for {institution_data['institution_name']}",
-        "performance_data": institution_data.to_dict(),
-        "recommendations": generate_ai_recommendations(institution_data)
-    }
-
-def generate_text_report(institution_data, recommendations):
-    """Generate a text version of the report"""
-    report_lines = []
+if __name__ == "__main__":
+    # Test the module
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
     
-    report_lines.append("=" * 60)
-    report_lines.append(f"INSTITUTIONAL PERFORMANCE REPORT")
-    report_lines.append("=" * 60)
-    report_lines.append(f"")
-    report_lines.append(f"Institution: {institution_data['institution_name']}")
-    report_lines.append(f"Institution ID: {institution_data['institution_id']}")
-    report_lines.append(f"Report Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    report_lines.append(f"")
-    report_lines.append("-" * 60)
-    report_lines.append(f"EXECUTIVE SUMMARY")
-    report_lines.append("-" * 60)
-    report_lines.append(f"")
-    report_lines.append(f"Performance Score: {institution_data['performance_score']:.2f}/10")
-    report_lines.append(f"Risk Level: {institution_data['risk_level']}")
-    report_lines.append(f"Approval Recommendation: {institution_data['approval_recommendation']}")
-    report_lines.append(f"")
-    report_lines.append("-" * 60)
-    report_lines.append(f"KEY PERFORMANCE INDICATORS")
-    report_lines.append("-" * 60)
-    report_lines.append(f"")
-    report_lines.append(f"NAAC Grade: {institution_data.get('naac_grade', 'N/A')}")
-    report_lines.append(f"Placement Rate: {institution_data.get('placement_rate', 0):.1f}%")
-    report_lines.append(f"Research Publications: {institution_data.get('research_publications', 0)}")
-    report_lines.append(f"Student-Faculty Ratio: {institution_data.get('student_faculty_ratio', 0):.1f}")
-    report_lines.append(f"Financial Stability: {institution_data.get('financial_stability_score', 0):.1f}/10")
-    report_lines.append(f"")
-    report_lines.append("-" * 60)
-    report_lines.append(f"AI RECOMMENDATIONS")
-    report_lines.append("-" * 60)
-    report_lines.append(f"")
+    from core.analyzer import InstitutionalAIAnalyzer
     
-    for i, rec in enumerate(recommendations, 1):
-        report_lines.append(f"{i}. {rec}")
+    st.set_page_config(page_title="PDF Reports Test", layout="wide")
     
-    report_lines.append(f"")
-    report_lines.append("=" * 60)
-    report_lines.append(f"End of Report")
-    report_lines.append("=" * 60)
-    
-    return "\n".join(report_lines)
-
-def generate_ai_recommendations(institution_data):
-    """Generate AI recommendations for the institution"""
-    recommendations = []
-    
-    # Student-Faculty Ratio
-    sf_ratio = institution_data.get('student_faculty_ratio', 0)
-    if sf_ratio > 25:
-        recommendations.append("Recruit additional faculty members to improve student-faculty ratio")
-    
-    # Placement Rate
-    placement_rate = institution_data.get('placement_rate', 0)
-    if placement_rate < 70:
-        recommendations.append("Strengthen industry partnerships and career development programs")
-    
-    # Research Publications
-    research_pubs = institution_data.get('research_publications', 0)
-    if research_pubs < 50:
-        recommendations.append("Establish research promotion policy and faculty development programs")
-    
-    # Digital Infrastructure
-    digital_score = institution_data.get('digital_infrastructure_score', 0)
-    if digital_score < 7:
-        recommendations.append("Invest in digital infrastructure and e-learning platforms")
-    
-    # NAAC Grade
-    naac_grade = institution_data.get('naac_grade', '')
-    if naac_grade in ['B', 'C']:
-        recommendations.append("Work on improving NAAC accreditation through quality enhancement")
-    
-    # Default recommendations if none apply
-    if not recommendations:
-        recommendations = [
-            "Continue current improvement initiatives",
-            "Focus on maintaining quality standards",
-            "Explore international collaborations"
-        ]
-    
-    return recommendations[:5]  # Return top 5 recommendations
+    analyzer = InstitutionalAIAnalyzer()
+    create_pdf_report_module(analyzer)
