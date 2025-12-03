@@ -308,3 +308,152 @@ class InstitutionalAIAnalyzer:
             recommendations.append("Establish research promotion policy and faculty development programs")
         
         return recommendations
+
+    def get_institution_submissions(self, institution_id: str) -> pd.DataFrame:
+    """Get submissions for a specific institution"""
+    try:
+        query = '''
+            SELECT * FROM institution_submissions 
+            WHERE institution_id = ? 
+            ORDER BY submitted_date DESC
+        '''
+        return pd.read_sql(query, self.conn, params=(institution_id,))
+    except Exception as e:
+        print(f"Error getting submissions: {e}")
+        return pd.DataFrame()
+
+def save_institution_submission(self, institution_id: str, submission_type: str, 
+                              submission_data: Dict):
+    """Save institution submission data"""
+    try:
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO institution_submissions 
+            (institution_id, submission_type, submission_data, status)
+            VALUES (?, ?, ?, ?)
+        ''', (institution_id, submission_type, 
+              json.dumps(submission_data), 'Under Review'))
+        self.conn.commit()
+        
+        # Update form submission count
+        if 'form_submission_count' in st.session_state:
+            st.session_state.form_submission_count += 1
+            
+        return True
+    except Exception as e:
+        print(f"Error saving submission: {e}")
+        return False
+
+def get_institution_documents(self, institution_id: str) -> pd.DataFrame:
+    """Get documents for a specific institution"""
+    try:
+        query = '''
+            SELECT * FROM institution_documents 
+            WHERE institution_id = ? 
+            ORDER BY upload_date DESC
+        '''
+        return pd.read_sql(query, self.conn, params=(institution_id,))
+    except Exception as e:
+        print(f"Error getting documents: {e}")
+        return pd.DataFrame()
+
+def save_uploaded_documents(self, institution_id: str, uploaded_files: List, 
+                          document_types: List[str]):
+    """Save uploaded documents to database"""
+    try:
+        cursor = self.conn.cursor()
+        for i, uploaded_file in enumerate(uploaded_files):
+            # Extract filename and type
+            filename = uploaded_file.name
+            doc_type = document_types[i] if i < len(document_types) else 'other'
+            
+            cursor.execute('''
+                INSERT INTO institution_documents 
+                (institution_id, document_name, document_type, status)
+                VALUES (?, ?, ?, ?)
+            ''', (institution_id, filename, doc_type, 'Uploaded'))
+        
+        self.conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving documents: {e}")
+        return False
+
+def analyze_document_sufficiency(self, file_names: List[str], approval_type: str) -> Dict:
+    """Analyze document sufficiency for approval type"""
+    try:
+        # Get requirements
+        requirements = self.document_requirements.get(approval_type, {})
+        
+        mandatory_docs = requirements.get('mandatory', [])
+        supporting_docs = requirements.get('supporting', [])
+        
+        # Count uploaded mandatory documents
+        uploaded_mandatory = 0
+        for doc in mandatory_docs:
+            if any(doc.lower() in name.lower() for name in file_names):
+                uploaded_mandatory += 1
+        
+        # Count uploaded supporting documents
+        uploaded_supporting = 0
+        for doc in supporting_docs:
+            if any(doc.lower() in name.lower() for name in file_names):
+                uploaded_supporting += 1
+        
+        # Calculate sufficiency percentages
+        mandatory_sufficiency = (uploaded_mandatory / len(mandatory_docs) * 100) if mandatory_docs else 0
+        overall_sufficiency = ((uploaded_mandatory + uploaded_supporting) / 
+                              (len(mandatory_docs) + len(supporting_docs)) * 100) if (mandatory_docs and supporting_docs) else mandatory_sufficiency
+        
+        # Identify missing mandatory documents
+        missing_mandatory = []
+        for doc in mandatory_docs:
+            if not any(doc.lower() in name.lower() for name in file_names):
+                missing_mandatory.append(doc)
+        
+        # Generate recommendations
+        recommendations = self.generate_document_recommendations(mandatory_sufficiency)
+        
+        return {
+            'mandatory_sufficiency': mandatory_sufficiency,
+            'overall_sufficiency': overall_sufficiency,
+            'uploaded_mandatory': uploaded_mandatory,
+            'uploaded_supporting': uploaded_supporting,
+            'total_mandatory': len(mandatory_docs),
+            'total_supporting': len(supporting_docs),
+            'missing_mandatory': missing_mandatory,
+            'recommendations': recommendations
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing document sufficiency: {e}")
+        return {
+            'mandatory_sufficiency': 0,
+            'overall_sufficiency': 0,
+            'uploaded_mandatory': 0,
+            'uploaded_supporting': 0,
+            'total_mandatory': 0,
+            'total_supporting': 0,
+            'missing_mandatory': [],
+            'recommendations': ["Error analyzing documents"]
+        }
+
+def generate_document_recommendations(self, mandatory_sufficiency: float) -> List[str]:
+    """Generate recommendations based on document sufficiency"""
+    recommendations = []
+    
+    if mandatory_sufficiency < 50:
+        recommendations.append("❌ Critical: Upload all mandatory documents immediately")
+        recommendations.append("⚠️ Application cannot proceed without mandatory documents")
+    elif mandatory_sufficiency < 80:
+        recommendations.append("📝 Important: Complete missing mandatory documents")
+        recommendations.append("💡 Consider uploading supporting documents for better assessment")
+    elif mandatory_sufficiency < 100:
+        recommendations.append("✅ Good: Complete remaining mandatory documents")
+        recommendations.append("🌟 Upload supporting documents for enhanced evaluation")
+    else:
+        recommendations.append("🎉 Excellent: All mandatory documents uploaded")
+        recommendations.append("📊 Submit supporting documents for comprehensive assessment")
+    
+    return recommendations
+
