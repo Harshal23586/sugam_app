@@ -1,0 +1,10 @@
+{
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 587,
+  "sender_email": "noreply@yourdomain.com",
+  "sender_name": "SUGAM System",
+  "use_tls": true,
+  "username": "",
+  "password": "",
+  "test_mode": true
+}
