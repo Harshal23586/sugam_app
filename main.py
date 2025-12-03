@@ -11,6 +11,9 @@ from modules.api_documentation import create_api_documentation
 from modules.pdf_reports import create_pdf_report_module
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
+from utils.config import initialize_session_state
+initialize_session_state()
+
 
 # Page configuration
 st.set_page_config(
@@ -47,7 +50,24 @@ def main():
     analyzer = InstitutionalAIAnalyzer()
     
     # Sidebar navigation
-    st.sidebar.title("Navigation")
+    with st.sidebar:
+        st.title("🧭 Navigation")
+    
+    # Check if user is logged in
+        if st.session_state.user_role == "Institution":
+            # Institution user navigation
+            tabs = ["🏠 Home", "🏛️ Institution Portal", "📊 Analytics", "📄 Reports", "⚙️ Settings"]
+        else:
+            # Public/non-logged in user navigation
+            tabs = ["🏠 Home", "📊 Analytics", "📄 Reports", "🔐 Login"]
+        
+        # Create navigation
+        selected_tab = st.radio("Go to", tabs, index=tabs.index(st.session_state.active_tab) if st.session_state.active_tab in tabs else 0)
+    
+        # Update active tab
+        if selected_tab != st.session_state.active_tab:
+            st.session_state.active_tab = selected_tab
+            st.rerun()
     
     if st.session_state.institution_user:
         # Institution user navigation
@@ -125,3 +145,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
