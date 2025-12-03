@@ -3,22 +3,20 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 def create_performance_dashboard(analyzer):
     st.header("📊 Institutional Performance Analytics Dashboard")
     
-    # Use the actual data from analyzer (should be 20 institutions × 10 years)
     df = analyzer.historical_data
     
-    # Show data specification at the top
+    # Show data specification
     st.info(f"📊 **Data Overview**: {df['institution_id'].nunique()} Institutions × {df['year'].nunique()} Years ({df['year'].min()}-{df['year'].max()}) | Total Records: {len(df)}")
     
-    # Filter for current year data only for KPI calculations
     current_year_data = df[df['year'] == 2023]
     
-    # Ensure we have data
     if len(current_year_data) == 0:
-        st.warning("No data available for the current year. Please check data generation.")
+        st.warning("No data available for the current year.")
         return
     
     # Key Performance Indicators
@@ -47,48 +45,37 @@ def create_performance_dashboard(analyzer):
         research_intensity = current_year_data['research_publications'].sum() / len(current_year_data)
         st.metric("Avg Research Publications", f"{research_intensity:.1f}")
     
-    # Performance Analysis
-    st.subheader("📈 Performance Analysis (20 Institutions)")
+    # Performance Distribution
+    st.subheader("📈 Performance Distribution Analysis")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        # Performance Distribution for current year
         fig1 = px.histogram(
             current_year_data, 
             x='performance_score',
-            title="Distribution of Institutional Performance Scores (2023)",
+            title="Distribution of Performance Scores",
             nbins=12,
             color_discrete_sequence=['#1f77b4'],
             opacity=0.8
         )
-        fig1.update_layout(
-            xaxis_title="Performance Score", 
-            yaxis_title="Number of Institutions",
-            showlegend=False
-        )
+        fig1.update_layout(xaxis_title="Performance Score", yaxis_title="Count")
         st.plotly_chart(fig1, use_container_width=True)
     
     with col2:
-        # Performance by Institution Type
         fig2 = px.box(
             current_year_data,
             x='institution_type',
             y='performance_score',
-            title="Performance Score by Institution Type (2023)",
+            title="Performance by Institution Type",
             color='institution_type'
         )
-        fig2.update_layout(
-            xaxis_title="Institution Type",
-            yaxis_title="Performance Score",
-            showlegend=False
-        )
+        fig2.update_layout(xaxis_title="Institution Type", yaxis_title="Performance Score")
         st.plotly_chart(fig2, use_container_width=True)
     
-    # Trend Analysis - Show all 10 years for the 20 institutions
-    st.subheader("📅 Historical Performance Trends (2014-2023)")
+    # Historical Trends
+    st.subheader("📅 Historical Performance Trends")
     
-    # Calculate average performance by year and type
     trend_data = df.groupby(['year', 'institution_type'])['performance_score'].mean().reset_index()
     
     fig3 = px.line(
@@ -96,18 +83,14 @@ def create_performance_dashboard(analyzer):
         x='year',
         y='performance_score',
         color='institution_type',
-        title="Average Performance Score Trend (2014-2023) - 20 Institutions",
+        title="Average Performance Score Trend (2014-2023)",
         markers=True
     )
-    fig3.update_layout(
-        xaxis_title="Year", 
-        yaxis_title="Average Performance Score",
-        legend_title="Institution Type"
-    )
+    fig3.update_layout(xaxis_title="Year", yaxis_title="Average Performance Score")
     st.plotly_chart(fig3, use_container_width=True)
     
     # Risk Analysis
-    st.subheader("⚠️ Institutional Risk Analysis (2023)")
+    st.subheader("⚠️ Risk Analysis")
     
     col1, col2 = st.columns(2)
     
@@ -116,7 +99,7 @@ def create_performance_dashboard(analyzer):
         fig4 = px.pie(
             values=risk_distribution.values,
             names=risk_distribution.index,
-            title="Institutional Risk Level Distribution",
+            title="Risk Level Distribution",
             color=risk_distribution.index,
             color_discrete_map={
                 'Low Risk': '#2ecc71',
@@ -128,7 +111,6 @@ def create_performance_dashboard(analyzer):
         st.plotly_chart(fig4, use_container_width=True)
     
     with col2:
-        # Placement vs Research Analysis
         fig5 = px.scatter(
             current_year_data,
             x='research_publications',
@@ -136,7 +118,7 @@ def create_performance_dashboard(analyzer):
             color='risk_level',
             size='performance_score',
             hover_data=['institution_name'],
-            title="Research Output vs Placement Rate (2023)",
+            title="Research vs Placement Analysis",
             color_discrete_map={
                 'Low Risk': '#2ecc71',
                 'Medium Risk': '#f39c12',
@@ -144,64 +126,175 @@ def create_performance_dashboard(analyzer):
                 'Critical Risk': '#c0392b'
             }
         )
-        fig5.update_layout(
-            xaxis_title="Research Publications",
-            yaxis_title="Placement Rate (%)"
-        )
+        fig5.update_layout(xaxis_title="Research Publications", yaxis_title="Placement Rate (%)")
         st.plotly_chart(fig5, use_container_width=True)
     
-    # Additional Visualizations focused on 20 institutions
-    st.subheader("🎯 Performance Insights - 20 Institutions Analysis")
+    # Top Performers
+    st.subheader("🏆 Top Performing Institutions")
+    
+    top_performers = current_year_data.nlargest(10, 'performance_score')[['institution_name', 'performance_score', 'naac_grade', 'placement_rate']]
+    
+    fig6 = px.bar(
+        top_performers,
+        x='performance_score',
+        y='institution_name',
+        orientation='h',
+        title="Top 10 Institutions",
+        color='performance_score',
+        color_continuous_scale='Viridis',
+        hover_data=['naac_grade', 'placement_rate']
+    )
+    fig6.update_layout(yaxis_title="Institution", xaxis_title="Performance Score")
+    st.plotly_chart(fig6, use_container_width=True)
+    
+    # Institution Comparison Tool
+    st.subheader("🔍 Compare Institutions")
+    
+    institutions_list = current_year_data['institution_name'].tolist()
+    selected_institutions = st.multiselect(
+        "Select institutions to compare:",
+        institutions_list,
+        default=institutions_list[:3] if len(institutions_list) >= 3 else institutions_list
+    )
+    
+    if selected_institutions:
+        comparison_data = current_year_data[current_year_data['institution_name'].isin(selected_institutions)]
+        
+        metrics = ['performance_score', 'placement_rate', 'research_publications']
+        
+        fig7 = go.Figure()
+        
+        for metric in metrics:
+            fig7.add_trace(go.Bar(
+                x=comparison_data['institution_name'],
+                y=comparison_data[metric],
+                name=metric.replace('_', ' ').title()
+            ))
+        
+        fig7.update_layout(
+            title="Institution Comparison",
+            xaxis_title="Institution",
+            yaxis_title="Value",
+            barmode='group'
+        )
+        
+        st.plotly_chart(fig7, use_container_width=True)
+        
+        # Detailed comparison table
+        comparison_cols = [
+            'institution_name', 'performance_score', 'naac_grade', 'nirf_ranking',
+            'placement_rate', 'research_publications', 'student_faculty_ratio',
+            'financial_stability_score', 'risk_level'
+        ]
+        
+        st.dataframe(
+            comparison_data[comparison_cols].set_index('institution_name'),
+            use_container_width=True
+        )
+    
+    # Performance Score Calculator
+    st.subheader("🧮 Performance Score Calculator")
+    
+    with st.expander("Calculate Custom Performance Score"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            naac_grade = st.selectbox(
+                "NAAC Grade",
+                ["A++", "A+", "A", "B++", "B+", "B", "C"],
+                index=2
+            )
+            nirf_rank = st.number_input(
+                "NIRF Ranking",
+                min_value=1,
+                max_value=200,
+                value=50,
+                help="Leave as 200 if not ranked"
+            )
+            student_faculty_ratio = st.slider(
+                "Student-Faculty Ratio",
+                min_value=5.0,
+                max_value=50.0,
+                value=20.0,
+                step=0.5
+            )
+        
+        with col2:
+            placement_rate = st.slider(
+                "Placement Rate (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=75.0,
+                step=1.0
+            )
+            research_publications = st.number_input(
+                "Research Publications",
+                min_value=0,
+                value=50,
+                step=10
+            )
+            digital_infrastructure = st.slider(
+                "Digital Infrastructure Score",
+                min_value=1.0,
+                max_value=10.0,
+                value=7.0,
+                step=0.5
+            )
+        
+        if st.button("Calculate Performance Score"):
+            from core.database import calculate_performance_score
+            
+            metrics_dict = {
+                'naac_grade': naac_grade,
+                'nirf_ranking': nirf_rank,
+                'student_faculty_ratio': student_faculty_ratio,
+                'placement_rate': placement_rate,
+                'research_publications': research_publications,
+                'digital_infrastructure': digital_infrastructure,
+                'financial_stability': 7.5,
+                'community_engagement': 5
+            }
+            
+            score = calculate_performance_score(metrics_dict)
+            
+            st.success(f"**Calculated Performance Score: {score:.2f}/10**")
+            
+            # Show recommendation
+            if score >= 8.0:
+                st.info("**Approval Recommendation:** Full Approval - 5 Years")
+                st.success("**Risk Level:** Low Risk")
+            elif score >= 7.0:
+                st.info("**Approval Recommendation:** Provisional Approval - 3 Years")
+                st.info("**Risk Level:** Medium Risk")
+            elif score >= 6.0:
+                st.warning("**Approval Recommendation:** Conditional Approval - 1 Year")
+                st.warning("**Risk Level:** Medium Risk")
+            elif score >= 5.0:
+                st.warning("**Approval Recommendation:** Approval with Strict Monitoring - 1 Year")
+                st.error("**Risk Level:** High Risk")
+            else:
+                st.error("**Approval Recommendation:** Rejection - Significant Improvements Required")
+                st.error("**Risk Level:** Critical Risk")
+    
+    # Download Options
+    st.subheader("📥 Data Export")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        # Top 10 performing institutions
-        top_performers = current_year_data.nlargest(10, 'performance_score')[['institution_name', 'performance_score', 'naac_grade']]
-        fig6 = px.bar(
-            top_performers,
-            x='performance_score',
-            y='institution_name',
-            orientation='h',
-            title="Top 10 Performing Institutions (2023)",
-            color='performance_score',
-            color_continuous_scale='Viridis'
+        csv_data = current_year_data.to_csv(index=False)
+        st.download_button(
+            label="Download Current Year Data (CSV)",
+            data=csv_data,
+            file_name="institutions_2023.csv",
+            mime="text/csv"
         )
-        fig6.update_layout(
-            yaxis_title="Institution",
-            xaxis_title="Performance Score"
-        )
-        st.plotly_chart(fig6, use_container_width=True)
     
     with col2:
-        # State-wise Performance
-        state_performance = current_year_data.groupby('state')['performance_score'].mean().sort_values(ascending=False)
-        fig7 = px.bar(
-            x=state_performance.index,
-            y=state_performance.values,
-            title="States by Average Performance Score (2023)",
-            color=state_performance.values,
-            color_continuous_scale='Viridis'
+        full_csv_data = df.to_csv(index=False)
+        st.download_button(
+            label="Download All Historical Data (CSV)",
+            data=full_csv_data,
+            file_name="institutions_all_years.csv",
+            mime="text/csv"
         )
-        fig7.update_layout(
-            xaxis_title="State",
-            yaxis_title="Average Performance Score",
-            showlegend=False
-        )
-        st.plotly_chart(fig7, use_container_width=True)
-    
-    # Comprehensive Data Table
-    st.subheader("📋 Institutional Performance Data (2023)")
-    
-    # Show key metrics for all 20 institutions
-    display_columns = [
-        'institution_id', 'institution_name', 'institution_type', 'state',
-        'performance_score', 'naac_grade', 'placement_rate', 'risk_level',
-        'approval_recommendation'
-    ]
-    
-    st.dataframe(
-        current_year_data[display_columns].sort_values('performance_score', ascending=False),
-        use_container_width=True,
-        height=400
-    )
