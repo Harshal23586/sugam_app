@@ -39,8 +39,6 @@ def create_document_analysis_module(analyzer):
     if st.button("🤖 Analyze Document Sufficiency", type="primary"):
         perform_enhanced_document_analysis(selected_institution, approval_type, analyzer, institution_performance)
 
-    pass
-
 def display_enhanced_document_checklist(institution_id, approval_type, analyzer, performance):
     """Display enhanced document checklist with upload dates and status"""
     
@@ -186,7 +184,5 @@ def display_enhanced_document_checklist(institution_id, approval_type, analyzer,
         'uploaded_docs_data': uploaded_docs_data,
         'performance': performance
     }
-    pass
 
-# ... (move other related functions here)
 
