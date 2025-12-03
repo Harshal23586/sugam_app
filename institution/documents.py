@@ -1079,4 +1079,5 @@ def generate_document_report(uploaded_docs, user):
     
     lines.append("=" * 60)
     lines.append("END OF REPORT")
-    lines.append("=" * 60
+    lines.append("=" * 60)
+
