@@ -538,3 +538,9 @@ class SimpleVectorStore:
                 })
         
         return results
+
+def initialize_rag_for_analyzer(analyzer):
+    """Initialize RAG system for analyzer"""
+    # Create and return RAG system
+    analyzer.rag_system = InstitutionalRAGSystem(analyzer)
+    return analyzer
