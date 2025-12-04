@@ -56,7 +56,7 @@ class InstitutionalAIAnalyzer:
             st.warning(f"PDF Report Generator not available: {e}")
             self.report_generator = None
 
-        from modules.rag_data_management import initialize_rag_for_analyzer
+        from modules.rag_core import initialize_rag_for_analyzer
         self = initialize_rag_for_analyzer(self)
     
     def define_performance_metrics(self) -> Dict[str, Dict]:
@@ -468,6 +468,7 @@ def generate_document_recommendations(self, mandatory_sufficiency: float) -> Lis
         recommendations.append("📊 Submit supporting documents for comprehensive assessment")
     
     return recommendations
+
 
 
 
