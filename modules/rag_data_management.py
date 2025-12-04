@@ -2,9 +2,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import sys
 import os
 from io import BytesIO
 import tempfile
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rag_system import SimpleTextSplitter, SimpleVectorStore
 import numpy as np
 
