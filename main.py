@@ -162,7 +162,7 @@ def main():
         create_institutional_intelligence_hub(analyzer)
     
     elif app_mode == "🔍 RAG Data Management":
-        create_rag_data_management(analyzer)
+        create_rag_dashboard(analyzer)
     
     elif app_mode == "💾 Data Management":
         create_data_management_module(analyzer)
@@ -197,6 +197,7 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
+
 
 
 
