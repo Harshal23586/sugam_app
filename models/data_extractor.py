@@ -2,7 +2,7 @@ import re
 import streamlit as st
 import numpy as np
 from typing import List, Dict, Any, Tuple
-from models.rag_system import RAGDocument, SimpleTextSplitter, SimpleVectorStore
+from models.rag_core import RAGDocument, SimpleTextSplitter, SimpleVectorStore
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
