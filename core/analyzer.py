@@ -46,6 +46,13 @@ class InstitutionalAIAnalyzer:
                 st.session_state.rag_initialized = True
         
         self.create_dummy_institution_users()
+        # Initialize report generator
+        try:
+            from modules.pdf_reports import PDFReportGenerator
+            self.report_generator = PDFReportGenerator(self)
+        except ImportError as e:
+            st.warning(f"PDF Report Generator not available: {e}")
+            self.report_generator = None
     
     def define_performance_metrics(self) -> Dict[str, Dict]:
         """Define key performance indicators for institutional evaluation"""
@@ -456,5 +463,6 @@ def generate_document_recommendations(self, mandatory_sufficiency: float) -> Lis
         recommendations.append("📊 Submit supporting documents for comprehensive assessment")
     
     return recommendations
+
 
 
