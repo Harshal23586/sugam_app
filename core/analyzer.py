@@ -4,6 +4,8 @@ import streamlit as st
 from typing import Dict, List, Any, Optional
 from models.data_extractor import RAGDataExtractor
 from modules.rag_core import InstitutionalRAGSystem, InstitutionalDocument
+from modules.rag_core import initialize_rag_for_analyzer
+    self = initialize_rag_for_analyzer(self)
 from core.database import (
     init_database, 
     load_or_generate_data, 
@@ -25,7 +27,6 @@ class InstitutionalAIAnalyzer:
         self.historical_data = load_or_generate_data(self.conn)
         self.performance_metrics = self.define_performance_metrics()
         self.document_requirements = self.define_document_requirements()
-        self.rag_system = InstitutionalRAGSystem(self)
         
         # Initialize RAG with progress indication
         with st.spinner("🔄 Initializing AI Document Analysis System..."):
@@ -55,9 +56,6 @@ class InstitutionalAIAnalyzer:
         except ImportError as e:
             st.warning(f"PDF Report Generator not available: {e}")
             self.report_generator = None
-
-        from modules.rag_core import initialize_rag_for_analyzer
-        self = initialize_rag_for_analyzer(self)
     
     def define_performance_metrics(self) -> Dict[str, Dict]:
         """Define key performance indicators for institutional evaluation"""
@@ -468,6 +466,7 @@ def generate_document_recommendations(self, mandatory_sufficiency: float) -> Lis
         recommendations.append("📊 Submit supporting documents for comprehensive assessment")
     
     return recommendations
+
 
 
 
