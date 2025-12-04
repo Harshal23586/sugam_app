@@ -416,3 +416,57 @@ def get_institution_documents(conn, institution_id: str) -> pd.DataFrame:
         WHERE institution_id = ? 
         ORDER BY upload_date DESC
     ''', conn, params=(institution_id,))
+    
+def initialize_system_tables(conn):
+    """Initialize system-specific tables"""
+    cursor = conn.cursor()
+    
+    # System settings table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS system_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_key TEXT UNIQUE,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Audit log table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id TEXT,
+            action TEXT,
+            details TEXT,
+            ip_address TEXT
+        )
+    """)
+    
+    # API keys table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            type TEXT,
+            key_value TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at REAL,
+            is_active INTEGER DEFAULT 1
+        )
+    """)
+    
+    # Report history table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS report_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            institution_id TEXT,
+            report_type TEXT,
+            generated_by TEXT,
+            file_path TEXT,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            download_count INTEGER DEFAULT 0
+        )
+    """)
+    
+    conn.commit()
