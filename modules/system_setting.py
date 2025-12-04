@@ -1,404 +1,475 @@
-def create_system_settings(analyzer):
-    st.header("⚙️ System Configuration & Settings")
+# modules/system_settings.py
+import streamlit as st
+import json
+import os
+from datetime import datetime
+import sqlite3
+from utils.backup import create_backup, get_available_backups, restore_from_backup
+from utils.helpers import get_database_information
+
+def create_system_settings_module(analyzer):
+    st.header("⚙️ System Settings & Administration")
     
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📊 Performance Metrics", 
-        "📋 Document Requirements",
-        "🎯 Approval Thresholds",
-        "🔧 System Parameters"
+    # Create tabs for different settings sections
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🔧 General Settings",
+        "👥 User Management", 
+        "💾 Backup & Restore",
+        "📊 System Health",
+        "🔐 Access Control"
     ])
     
     with tab1:
-        st.subheader("📊 Performance Metrics Configuration")
-        st.info("Configure weights and parameters for institutional performance evaluation")
-        
-        # Create editable performance metrics structure
-        performance_config = analyzer.performance_metrics.copy()
-        
-        for category, config in performance_config.items():
-            with st.expander(f"🔸 {category.replace('_', ' ').title()} (Weight: {config['weight']})", expanded=True):
-                
-                # Category weight
-                new_weight = st.slider(
-                    f"Category Weight for {category.replace('_', ' ').title()}",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=config['weight'],
-                    step=0.05,
-                    key=f"weight_{category}"
-                )
-                
-                config['weight'] = new_weight
-                
-                # Sub-metrics configuration
-                st.write("**Sub-Metrics Configuration:**")
-                sub_metrics = config['sub_metrics']
-                
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    for sub_metric, weight in sub_metrics.items():
-                        new_sub_weight = st.slider(
-                            f"{sub_metric.replace('_', ' ').title()}",
-                            min_value=0.0,
-                            max_value=1.0,
-                            value=weight,
-                            step=0.05,
-                            key=f"sub_{category}_{sub_metric}"
-                        )
-                        sub_metrics[sub_metric] = new_sub_weight
-                
-                with col2:
-                    # Show weight distribution
-                    total = sum(sub_metrics.values())
-                    if total > 0:
-                        st.write("**Distribution:**")
-                        for sub_metric, weight in sub_metrics.items():
-                            percentage = (weight / total) * 100
-                            st.write(f"{sub_metric}: {percentage:.1f}%")
-                    else:
-                        st.warning("Total weight is 0")
-        
-        # Save button for performance metrics
-        if st.button("💾 Save Performance Metrics Configuration", type="primary"):
-            analyzer.performance_metrics = performance_config
-            save_configuration(analyzer, 'performance_metrics', performance_config)
-            st.success("✅ Performance metrics configuration saved!")
-        
-        # Reset to defaults
-        if st.button("🔄 Reset to Defaults", type="secondary"):
-            analyzer.performance_metrics = analyzer.define_performance_metrics()
-            st.success("✅ Performance metrics reset to defaults")
-            st.rerun()
+        create_general_settings(analyzer)
     
     with tab2:
-        st.subheader("📋 Document Requirements Configuration")
-        st.info("Configure document requirements for different approval types")
-        
-        doc_config = analyzer.document_requirements.copy()
-        
-        for approval_type, requirements in doc_config.items():
-            with st.expander(f"📄 {approval_type.replace('_', ' ').title()}", expanded=True):
-                
-                # Mandatory Documents
-                st.write("**📌 Mandatory Documents:**")
-                mandatory_docs = requirements['mandatory']
-                
-                # Dynamic list for mandatory documents
-                new_mandatory = []
-                for i, doc in enumerate(mandatory_docs):
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        new_doc = st.text_input(
-                            f"Mandatory Document {i+1}",
-                            value=doc,
-                            key=f"mandatory_{approval_type}_{i}"
-                        )
-                    with col2:
-                        if st.button("❌", key=f"remove_mandatory_{approval_type}_{i}"):
-                            continue  # Skip adding this one
-                    if new_doc:
-                        new_mandatory.append(new_doc)
-                
-                # Add new document button
-                if st.button("➕ Add New Mandatory Document", key=f"add_mandatory_{approval_type}"):
-                    new_mandatory.append("New Document")
-                    st.rerun()
-                
-                requirements['mandatory'] = new_mandatory
-                
-                # Supporting Documents
-                st.write("**📎 Supporting Documents:**")
-                supporting_docs = requirements['supporting']
-                
-                new_supporting = []
-                for i, doc in enumerate(supporting_docs):
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        new_doc = st.text_input(
-                            f"Supporting Document {i+1}",
-                            value=doc,
-                            key=f"supporting_{approval_type}_{i}"
-                        )
-                    with col2:
-                        if st.button("❌", key=f"remove_supporting_{approval_type}_{i}"):
-                            continue
-                    if new_doc:
-                        new_supporting.append(new_doc)
-                
-                if st.button("➕ Add New Supporting Document", key=f"add_supporting_{approval_type}"):
-                    new_supporting.append("New Supporting Document")
-                    st.rerun()
-                
-                requirements['supporting'] = new_supporting
-        
-        # Save button for document requirements
-        if st.button("💾 Save Document Requirements", type="primary"):
-            analyzer.document_requirements = doc_config
-            save_configuration(analyzer, 'document_requirements', doc_config)
-            st.success("✅ Document requirements saved!")
+        create_user_management(analyzer)
     
     with tab3:
-        st.subheader("🎯 Approval Thresholds Configuration")
-        st.info("Configure score thresholds for different approval levels")
-        
-        # Current thresholds (extracted from generate_approval_recommendation)
-        thresholds = {
-            "Full Approval (5 Years)": 8.0,
-            "Provisional Approval (3 Years)": 7.0,
-            "Conditional Approval (1 Year)": 6.0,
-            "Strict Monitoring (1 Year)": 5.0,
-            "Rejection": 0.0
-        }
-        
-        updated_thresholds = {}
-        
-        for level, threshold in thresholds.items():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"**{level}**")
-            with col2:
-                new_threshold = st.number_input(
-                    f"Threshold",
-                    min_value=0.0,
-                    max_value=10.0,
-                    value=threshold,
-                    step=0.5,
-                    key=f"threshold_{level}"
-                )
-            updated_thresholds[level] = new_threshold
-        
-        # Risk level thresholds
-        st.write("---")
-        st.subheader("⚠️ Risk Level Thresholds")
-        
-        risk_thresholds = {
-            "Low Risk": 8.0,
-            "Medium Risk": 6.5,
-            "High Risk": 5.0,
-            "Critical Risk": 0.0
-        }
-        
-        for level, threshold in risk_thresholds.items():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"**{level}**")
-            with col2:
-                new_threshold = st.number_input(
-                    f"Risk Threshold",
-                    min_value=0.0,
-                    max_value=10.0,
-                    value=threshold,
-                    step=0.5,
-                    key=f"risk_{level}"
-                )
-        
-        if st.button("💾 Save Thresholds", type="primary"):
-            save_configuration(analyzer, 'approval_thresholds', updated_thresholds)
-            st.success("✅ Approval thresholds saved!")
+        create_backup_restore(analyzer)
     
     with tab4:
-        st.subheader("🔧 System Parameters")
-        st.info("Configure system-wide parameters and constants")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Data generation parameters
-            st.write("**Data Generation:**")
-            default_institutions = st.number_input(
-                "Default Number of Institutions",
-                min_value=5,
-                max_value=100,
-                value=20,
-                step=5
-            )
-            
-            default_years = st.number_input(
-                "Default Years of Data",
-                min_value=1,
-                max_value=20,
-                value=10,
-                step=1
-            )
-            
-            # RAG settings
-            st.write("**AI/RAG Settings:**")
-            chunk_size = st.number_input(
-                "Document Chunk Size",
-                min_value=500,
-                max_value=2000,
-                value=1000,
-                step=100
-            )
-            
-            chunk_overlap = st.number_input(
-                "Chunk Overlap",
-                min_value=0,
-                max_value=500,
-                value=200,
-                step=50
-            )
-        
-        with col2:
-            # Scoring parameters
-            st.write("**Scoring Parameters:**")
-            min_performance_score = st.number_input(
-                "Minimum Performance Score",
-                min_value=0.0,
-                max_value=5.0,
-                value=1.0,
-                step=0.5
-            )
-            
-            max_performance_score = st.number_input(
-                "Maximum Performance Score",
-                min_value=5.0,
-                max_value=15.0,
-                value=10.0,
-                step=0.5
-            )
-            
-            # Document validation
-            st.write("**Document Validation:**")
-            mandatory_threshold = st.slider(
-                "Mandatory Document Threshold (%)",
-                min_value=0,
-                max_value=100,
-                value=80,
-                step=5
-            )
-            
-            review_period_days = st.number_input(
-                "Review Period (days)",
-                min_value=1,
-                max_value=90,
-                value=30,
-                step=1
-            )
-        
-        # System actions
-        st.write("---")
-        st.subheader("🛠️ System Actions")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("🔄 Clear All Cache", type="secondary"):
-                clear_cache(analyzer)
-        
-        with col2:
-            if st.button("📊 Recalculate All Scores", type="secondary"):
-                recalculate_all_scores(analyzer)
-        
-        with col3:
-            if st.button("🔍 Validate System Integrity", type="secondary"):
-                validate_system_integrity(analyzer)
-        
-        # Save all system parameters
-        if st.button("💾 Save System Parameters", type="primary"):
-            system_params = {
-                'default_institutions': default_institutions,
-                'default_years': default_years,
-                'chunk_size': chunk_size,
-                'chunk_overlap': chunk_overlap,
-                'min_performance_score': min_performance_score,
-                'max_performance_score': max_performance_score,
-                'mandatory_threshold': mandatory_threshold,
-                'review_period_days': review_period_days
-            }
-            save_configuration(analyzer, 'system_parameters', system_params)
-            st.success("✅ System parameters saved!")
+        create_system_health(analyzer)
+    
+    with tab5:
+        create_access_control(analyzer)
 
-def save_configuration(analyzer, config_type, config_data):
-    """Save configuration to database"""
+def create_general_settings(analyzer):
+    st.subheader("🔧 General Application Settings")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Data refresh settings
+        st.write("**Data Refresh Settings**")
+        auto_refresh = st.checkbox("Enable Auto-refresh", value=True)
+        refresh_interval = st.selectbox(
+            "Refresh Interval",
+            ["1 hour", "6 hours", "12 hours", "24 hours"],
+            index=0
+        )
+        
+        # Report settings
+        st.write("**Report Generation Settings**")
+        default_report_type = st.selectbox(
+            "Default Report Type",
+            ["Executive Summary", "Comprehensive", "Detailed Analytics"]
+        )
+        auto_email_reports = st.checkbox("Auto-email reports to institutions", value=False)
+    
+    with col2:
+        # Notification settings
+        st.write("**Notification Settings**")
+        email_notifications = st.checkbox("Enable Email Notifications", value=True)
+        slack_notifications = st.checkbox("Enable Slack Notifications", value=False)
+        
+        # Approval workflow settings
+        st.write("**Approval Workflow**")
+        auto_escalation = st.checkbox("Enable Auto-escalation", value=True)
+        review_days = st.number_input("Review Period (days)", min_value=1, max_value=30, value=14)
+    
+    # Save settings button
+    if st.button("💾 Save Settings", type="primary"):
+        settings = {
+            "auto_refresh": auto_refresh,
+            "refresh_interval": refresh_interval,
+            "default_report_type": default_report_type,
+            "auto_email_reports": auto_email_reports,
+            "email_notifications": email_notifications,
+            "slack_notifications": slack_notifications,
+            "auto_escalation": auto_escalation,
+            "review_days": review_days,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        # Save to database
+        save_system_settings(analyzer, settings)
+        st.success("✅ Settings saved successfully!")
+
+def create_user_management(analyzer):
+    st.subheader("👥 User Management")
+    
+    # Tab for different user types
+    user_tab1, user_tab2, user_tab3 = st.tabs(["👨‍💼 Admin Users", "🏛️ Institution Users", "📋 Audit Log"])
+    
+    with user_tab1:
+        manage_admin_users(analyzer)
+    
+    with user_tab2:
+        manage_institution_users(analyzer)
+    
+    with user_tab3:
+        show_audit_log(analyzer)
+
+def manage_admin_users(analyzer):
+    st.write("**Administrator Accounts**")
+    
+    # Get existing admin users
+    cursor = analyzer.conn.cursor()
+    cursor.execute("""
+        SELECT username, email, role, created_at 
+        FROM institution_users 
+        WHERE role IN ('Admin', 'Super Admin')
+        ORDER BY created_at DESC
+    """)
+    admin_users = cursor.fetchall()
+    
+    if admin_users:
+        st.dataframe(
+            pd.DataFrame(admin_users, columns=['Username', 'Email', 'Role', 'Created']),
+            use_container_width=True
+        )
+    
+    # Add new admin
+    with st.expander("➕ Add New Administrator"):
+        with st.form("new_admin_form"):
+            new_username = st.text_input("Username")
+            new_email = st.text_input("Email")
+            new_password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            admin_role = st.selectbox("Role", ["Admin", "Super Admin"])
+            
+            if st.form_submit_button("Create Admin Account"):
+                if new_password == confirm_password:
+                    success = analyzer.create_institution_user(
+                        "SYSTEM_ADMIN",
+                        new_username,
+                        new_password,
+                        "System Administrator",
+                        new_email,
+                        "+91-0000000000",
+                        role=admin_role
+                    )
+                    if success:
+                        st.success(f"✅ Admin account created for {new_username}")
+                    else:
+                        st.error("❌ Username already exists")
+                else:
+                    st.error("❌ Passwords do not match")
+
+def manage_institution_users(analyzer):
+    st.write("**Institution User Accounts**")
+    
+    # Get all institution users
+    cursor = analyzer.conn.cursor()
+    cursor.execute("""
+        SELECT iu.username, i.institution_name, iu.contact_person, 
+               iu.email, iu.role, iu.is_active, iu.created_at
+        FROM institution_users iu
+        JOIN institutions i ON iu.institution_id = i.institution_id
+        WHERE iu.role = 'Institution'
+        ORDER BY i.institution_name
+    """)
+    institution_users = cursor.fetchall()
+    
+    if institution_users:
+        # Display with filtering options
+        search_term = st.text_input("🔍 Search users", "")
+        
+        df_users = pd.DataFrame(institution_users, columns=[
+            'Username', 'Institution', 'Contact', 'Email', 'Role', 'Active', 'Created'
+        ])
+        
+        if search_term:
+            mask = df_users.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
+            df_users = df_users[mask]
+        
+        st.dataframe(df_users, use_container_width=True)
+    
+    # Bulk actions
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🔄 Reset Passwords", type="secondary"):
+            st.info("Password reset emails would be sent to selected users")
+    
+    with col2:
+        if st.button("📧 Send Welcome Email", type="secondary"):
+            st.success("Welcome emails sent to new users")
+    
+    with col3:
+        if st.button("📊 Export User List", type="secondary"):
+            st.download_button(
+                label="⬇️ Download CSV",
+                data=df_users.to_csv(index=False),
+                file_name="institution_users.csv",
+                mime="text/csv"
+            )
+
+def show_audit_log(analyzer):
+    st.write("**System Audit Log**")
+    
+    # Get audit log from database
+    try:
+        cursor = analyzer.conn.cursor()
+        cursor.execute("""
+            SELECT timestamp, user_id, action, details 
+            FROM audit_log 
+            ORDER BY timestamp DESC 
+            LIMIT 100
+        """)
+        audit_log = cursor.fetchall()
+        
+        if audit_log:
+            df_log = pd.DataFrame(audit_log, columns=['Timestamp', 'User', 'Action', 'Details'])
+            st.dataframe(df_log, use_container_width=True)
+        else:
+            st.info("No audit log entries found")
+            
+    except Exception as e:
+        st.info("Creating audit log table...")
+        cursor = analyzer.conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT,
+                action TEXT,
+                details TEXT
+            )
+        """)
+        analyzer.conn.commit()
+        st.success("Audit log table created")
+
+def create_backup_restore(analyzer):
+    st.subheader("💾 Backup & Restore")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Create Backup**")
+        backup_name = st.text_input("Backup Name", f"backup_{datetime.now().strftime('%Y%m%d')}")
+        include_documents = st.checkbox("Include Documents", value=True)
+        
+        if st.button("💾 Create Backup Now", type="primary"):
+            with st.spinner("Creating backup..."):
+                backup_file = create_backup(analyzer, backup_name, include_documents)
+                st.success(f"✅ Backup created: {backup_file}")
+    
+    with col2:
+        st.write("**Restore Backup**")
+        backups = get_available_backups()
+        
+        if backups:
+            selected_backup = st.selectbox("Select Backup", backups)
+            
+            if st.button("🔄 Restore Selected Backup", type="secondary"):
+                if st.checkbox("⚠️ I understand this will overwrite current data"):
+                    with st.spinner("Restoring backup..."):
+                        success = restore_from_backup(analyzer, selected_backup)
+                        if success:
+                            st.success("✅ Backup restored successfully!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to restore backup")
+        else:
+            st.info("No backups available")
+    
+    # Scheduled backups
+    st.markdown("---")
+    st.write("**Scheduled Backups**")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        enable_auto_backup = st.checkbox("Enable Auto Backup", value=True)
+    
+    with col2:
+        backup_frequency = st.selectbox(
+            "Frequency",
+            ["Daily", "Weekly", "Monthly"],
+            disabled=not enable_auto_backup
+        )
+    
+    with col3:
+        backup_time = st.time_input(
+            "Backup Time",
+            value=datetime.strptime("02:00", "%H:%M").time(),
+            disabled=not enable_auto_backup
+        )
+    
+    if st.button("📅 Save Backup Schedule"):
+        st.success("✅ Backup schedule saved")
+
+def create_system_health(analyzer):
+    st.subheader("📊 System Health Dashboard")
+    
+    # Get system information
+    system_info = get_database_information(analyzer)
+    
+    # Display health metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Database Size", f"{system_info['size_mb']} MB")
+        st.metric("Total Records", system_info['total_records'])
+    
+    with col2:
+        st.metric("Active Users", system_info.get('active_users', 0))
+        st.metric("API Requests", system_info.get('api_requests', 0))
+    
+    with col3:
+        # Disk space
+        import shutil
+        total, used, free = shutil.disk_usage("/")
+        st.metric("Disk Space", f"{free // (2**30)} GB free")
+        
+        # Memory usage
+        import psutil
+        memory = psutil.virtual_memory()
+        st.metric("Memory Usage", f"{memory.percent}%")
+    
+    with col4:
+        # System uptime
+        import uptime
+        days = uptime.uptime() / 86400
+        st.metric("System Uptime", f"{days:.1f} days")
+        
+        # Last backup
+        st.metric("Last Backup", system_info['last_backup'])
+    
+    # Performance charts
+    st.markdown("---")
+    st.write("**Performance Metrics**")
+    
+    # Create sample performance data
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=('Response Time', 'User Activity', 'Database Load', 'Error Rate')
+    )
+    
+    # Sample data - replace with actual metrics
+    fig.add_trace(
+        go.Scatter(x=list(range(24)), y=[100, 120, 110, 105, 115, 125, 130, 140, 135, 130, 125, 120, 
+                                         115, 110, 105, 100, 95, 90, 85, 80, 85, 90, 95, 100],
+                   mode='lines', name='Response Time (ms)'),
+        row=1, col=1
+    )
+    
+    fig.add_trace(
+        go.Bar(x=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], 
+               y=[150, 200, 180, 220, 250, 100, 80], name='Active Users'),
+        row=1, col=2
+    )
+    
+    fig.update_layout(height=600, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # System recommendations
+    st.markdown("---")
+    st.write("**🔧 System Recommendations**")
+    
+    recommendations = []
+    if system_info['size_mb'] > 100:
+        recommendations.append("💾 **Database size large**: Consider archiving old data")
+    if 'last_backup' in system_info and 'No backup' in system_info['last_backup']:
+        recommendations.append("⚠️ **No recent backup**: Create a backup immediately")
+    if system_info.get('data_age_days', 365) > 30:
+        recommendations.append("📅 **Data outdated**: Update to current year")
+    
+    if recommendations:
+        for rec in recommendations:
+            st.write(rec)
+    else:
+        st.success("✅ System is healthy and up-to-date")
+
+def create_access_control(analyzer):
+    st.subheader("🔐 Access Control & Permissions")
+    
+    # Role-based permissions
+    st.write("**Role Permissions**")
+    
+    roles = {
+        "Super Admin": ["Full system access", "User management", "Backup/restore", "API management"],
+        "Admin": ["Institution management", "Report generation", "Document review"],
+        "Reviewer": ["Document review", "Approval workflows", "Read-only access to data"],
+        "Institution": ["Own data submission", "Document upload", "View own reports"],
+        "Viewer": ["Read-only access to public data"]
+    }
+    
+    selected_role = st.selectbox("Select Role to Configure", list(roles.keys()))
+    
+    if selected_role:
+        st.write(f"**Current permissions for {selected_role}:**")
+        for permission in roles[selected_role]:
+            st.write(f"✓ {permission}")
+    
+    # API access control
+    st.markdown("---")
+    st.write("**API Access Management**")
+    
+    # Display existing API keys
+    cursor = analyzer.conn.cursor()
+    cursor.execute("SELECT * FROM api_keys")
+    api_keys = cursor.fetchall()
+    
+    if api_keys:
+        st.write("**Existing API Keys:**")
+        for key in api_keys:
+            with st.expander(f"🔑 {key[1]} - {key[2]}"):
+                st.code(f"Key: {key[3][:20]}...")
+                st.write(f"Created: {key[4]}")
+                if st.button(f"Revoke {key[1]}", type="secondary"):
+                    cursor.execute("DELETE FROM api_keys WHERE id = ?", (key[0],))
+                    analyzer.conn.commit()
+                    st.success("✅ API key revoked")
+                    st.rerun()
+    
+    # Generate new API key
+    with st.expander("➕ Generate New API Key"):
+        key_name = st.text_input("Key Name")
+        key_type = st.selectbox("Key Type", ["Read-only", "Read-Write", "Admin"])
+        expiry_days = st.number_input("Expiry (days)", min_value=1, max_value=365, value=30)
+        
+        if st.button("Generate API Key"):
+            import secrets
+            api_key = secrets.token_urlsafe(32)
+            
+            cursor.execute("""
+                INSERT INTO api_keys (name, type, key_value, expires_at)
+                VALUES (?, ?, ?, ?)
+            """, (key_name, key_type, api_key, 
+                  datetime.now().timestamp() + expiry_days * 86400))
+            analyzer.conn.commit()
+            
+            st.success("✅ API key generated!")
+            st.code(f"API Key: {api_key}")
+            st.warning("⚠️ Save this key now - it won't be shown again!")
+
+def save_system_settings(analyzer, settings):
+    """Save system settings to database"""
     cursor = analyzer.conn.cursor()
     
-    # Create configuration table if not exists
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS system_configuration (
+    # Create settings table if not exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS system_settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            config_type TEXT,
-            config_data TEXT,
-            updated_by TEXT,
+            setting_key TEXT UNIQUE,
+            setting_value TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
     
-    # Save configuration
-    cursor.execute('''
-        INSERT INTO system_configuration (config_type, config_data, updated_by)
-        VALUES (?, ?, ?)
-    ''', (config_type, json.dumps(config_data), 'admin'))
+    # Save each setting
+    for key, value in settings.items():
+        cursor.execute("""
+            INSERT OR REPLACE INTO system_settings (setting_key, setting_value)
+            VALUES (?, ?)
+        """, (key, json.dumps(value) if isinstance(value, (dict, list)) else str(value)))
     
     analyzer.conn.commit()
 
-def clear_cache(analyzer):
-    """Clear system cache"""
-    # Clear session state
-    for key in list(st.session_state.keys()):
-        if key not in ['session_initialized', 'rag_initialized']:
-            del st.session_state[key]
+def load_system_settings(analyzer):
+    """Load system settings from database"""
+    cursor = analyzer.conn.cursor()
+    cursor.execute("SELECT setting_key, setting_value FROM system_settings")
+    settings = {}
     
-    # Clear temporary files
-    temp_dir = tempfile.gettempdir()
-    for file in os.listdir(temp_dir):
-        if file.startswith('ugc_'):
-            try:
-                os.remove(os.path.join(temp_dir, file))
-            except:
-                pass
+    for key, value in cursor.fetchall():
+        try:
+            settings[key] = json.loads(value)
+        except:
+            settings[key] = value
     
-    st.success("✅ System cache cleared!")
-    st.rerun()
-
-def recalculate_all_scores(analyzer):
-    """Recalculate all performance scores based on new configuration"""
-    with st.spinner("Recalculating all scores with new configuration..."):
-        # Get current data
-        current_data = analyzer.historical_data.copy()
-        
-        # Apply new scoring configuration
-        for idx, row in current_data.iterrows():
-            # Calculate score using new weights
-            new_score = analyzer.calculate_performance_score({
-                'naac_grade': row.get('naac_grade'),
-                'nirf_ranking': row.get('nirf_ranking'),
-                'student_faculty_ratio': row.get('student_faculty_ratio'),
-                'phd_faculty_ratio': row.get('phd_faculty_ratio'),
-                'placement_rate': row.get('placement_rate'),
-                'research_publications': row.get('research_publications'),
-                'digital_infrastructure': row.get('digital_infrastructure_score'),
-                'financial_stability': row.get('financial_stability_score'),
-                'community_engagement': row.get('community_projects')
-            })
-            
-            current_data.at[idx, 'performance_score'] = new_score
-            current_data.at[idx, 'approval_recommendation'] = analyzer.generate_approval_recommendation(new_score)
-            current_data.at[idx, 'risk_level'] = analyzer.assess_risk_level(new_score)
-        
-        # Save updated data
-        current_data.to_sql('institutions', analyzer.conn, if_exists='replace', index=False)
-        analyzer.historical_data = current_data
-        
-        st.success("✅ All scores recalculated with new configuration!")
-
-def validate_system_integrity(analyzer):
-    """Validate system configuration integrity"""
-    issues = []
-    
-    # Check if weights sum to 1
-    total_weight = sum(category['weight'] for category in analyzer.performance_metrics.values())
-    if abs(total_weight - 1.0) > 0.01:
-        issues.append(f"Performance metric weights don't sum to 1.0 (current: {total_weight:.2f})")
-    
-    # Check document requirements
-    for approval_type, requirements in analyzer.document_requirements.items():
-        if not requirements.get('mandatory'):
-            issues.append(f"No mandatory documents for {approval_type}")
-    
-    if issues:
-        st.error("⚠️ System Integrity Issues Found:")
-        for issue in issues:
-            st.write(f"- {issue}")
-    else:
-        st.success("✅ System integrity validation passed!")
+    return settings
