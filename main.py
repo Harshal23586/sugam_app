@@ -107,7 +107,7 @@ def main():
             create_api_documentation()
         
         elif selected_nav == "⚙️ System Settings":
-            create_system_settings_module(analyzer)
+            create_system_settings(analyzer)
         
         elif selected_nav == "🏛️ Institution Portal":
             create_institution_login(analyzer)
@@ -124,4 +124,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
