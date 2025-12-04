@@ -4,8 +4,6 @@ import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
-from modules.rag_core import InstitutionalRAGSystem, InstitutionalDocument
-
 
 def create_rag_dashboard(analyzer):
     """Main RAG Dashboard for document intelligence"""
