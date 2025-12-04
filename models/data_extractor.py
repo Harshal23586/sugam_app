@@ -5,24 +5,6 @@ from typing import List, Dict, Any, Tuple
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-class SimpleVectorStore:
-        def __init__(self, embedding_model=None):
-            self.embedding_model = embedding_model
-        
-        def from_embeddings(self, text_embeddings):
-            return self
-        
-        def similarity_search_with_score(self, query: str, k: int = 5):
-            return []
-    
-class SimpleTextSplitter:
-        def __init__(self, chunk_size=1000, chunk_overlap=200):
-            self.chunk_size = chunk_size
-            self.chunk_overlap = chunk_overlap
-        
-        def split_text(self, text: str):
-            return [text]
-
 class RAGDataExtractor:
     def __init__(self):
         try:
@@ -348,3 +330,23 @@ class RAGDataExtractor:
             'confidence_score': 0.0,
             'status': 'Analysis Completed in Basic Mode'
         }
+
+
+class SimpleVectorStore:
+        def __init__(self, embedding_model=None):
+            self.embedding_model = embedding_model
+        
+        def from_embeddings(self, text_embeddings):
+            return self
+        
+        def similarity_search_with_score(self, query: str, k: int = 5):
+            return []
+    
+class SimpleTextSplitter:
+        def __init__(self, chunk_size=1000, chunk_overlap=200):
+            self.chunk_size = chunk_size
+            self.chunk_overlap = chunk_overlap
+        
+        def split_text(self, text: str):
+            return [text]
+
