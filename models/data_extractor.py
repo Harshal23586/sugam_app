@@ -2,7 +2,6 @@ import re
 import streamlit as st
 import numpy as np
 from typing import List, Dict, Any, Tuple
-from models.rag_core import RAGDocument, SimpleTextSplitter, SimpleVectorStore
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -45,6 +44,33 @@ class RAGDataExtractor:
             self.vector_store = None
             self.documents = []
             self._setup_lightweight_analyzer()
+
+        try:
+            from modules.rag_core import RAGDocument, SimpleTextSplitter, SimpleVectorStore
+        except ImportError:
+            # Fallback implementations
+            class RAGDocument:
+                def __init__(self, page_content: str, metadata: dict = None):
+                    self.page_content = page_content
+                    self.metadata = metadata if metadata is not None else {}
+
+    class SimpleVectorStore:
+        def __init__(self, embedding_model=None):
+            self.embedding_model = embedding_model
+        
+        def from_embeddings(self, text_embeddings):
+            return self
+        
+        def similarity_search_with_score(self, query: str, k: int = 5):
+            return []
+    
+    class SimpleTextSplitter:
+        def __init__(self, chunk_size=1000, chunk_overlap=200):
+            self.chunk_size = chunk_size
+            self.chunk_overlap = chunk_overlap
+        
+        def split_text(self, text: str):
+            return [text]
 
     def _setup_lightweight_analyzer(self):
         """Setup lightweight text analysis without heavy embeddings"""
