@@ -12,7 +12,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from utils.helpers import generate_qr_code
+#from utils.helpers import generate_qr_code
 
 class PDFReportGenerator:
     def __init__(self, analyzer):
@@ -308,3 +308,4 @@ def create_pdf_report_module(analyzer):
             except Exception as e:
                 st.error(f"❌ Error generating report: {str(e)}")
                 st.exception(e)
+
