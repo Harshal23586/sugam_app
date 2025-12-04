@@ -185,7 +185,7 @@ class ComplianceChecker:
             'aicte': {
                 'mandatory': ['Approval Process Handbook', 'Faculty Details', 'Infrastructure Report'],
                 'metrics': ['Faculty-Student Ratio', 'Lab Equipment', 'Library Collection'],
-                'thresholds': {'Faculty-Student Ratio': 1:15}
+                'thresholds': {'Faculty-Student Ratio': '1:15'}
             },
             'financial': {
                 'mandatory': ['Audit Report', 'Balance Sheet', 'Income Statement'],
