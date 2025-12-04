@@ -4,9 +4,79 @@ import numpy as np
 from typing import List, Dict, Any, Tuple
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
+# Define RAGDocument FIRST, before any class that references it
+class RAGDocument:
+    def __init__(self, page_content: str, metadata: dict = None):
+        self.page_content = page_content
+        self.metadata = metadata if metadata is not None else {}
+
+# Then define SimpleTextSplitter
+class SimpleTextSplitter:
+    def __init__(self, chunk_size=1000, chunk_overlap=200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+    
+    def split_text(self, text: str):
+        # Simple chunking logic
+        words = text.split()
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for word in words:
+            if current_length + len(word) + 1 <= self.chunk_size:
+                current_chunk.append(word)
+                current_length += len(word) + 1
+            else:
+                if current_chunk:
+                    chunks.append(' '.join(current_chunk))
+                current_chunk = [word]
+                current_length = len(word)
+        
+        if current_chunk:
+            chunks.append(' '.join(current_chunk))
+        
+        return chunks
+
+# Then define SimpleVectorStore
+class SimpleVectorStore:
+    def __init__(self, embedding_model=None):
+        self.embedding_model = embedding_model
+        self.documents = []
+        self.embeddings = []
+    
+    def from_embeddings(self, text_embeddings):
+        self.documents = [text for text, _ in text_embeddings]
+        self.embeddings = [embedding for _, embedding in text_embeddings]
+        return self
+    
+    def similarity_search_with_score(self, query: str, k: int = 5):
+        if not self.embeddings or self.embedding_model is None:
+            return []
+        
+        query_embedding = self.embedding_model.encode([query])[0]
+        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
+        
+        results = []
+        sorted_indices = np.argsort(similarities)[-k:][::-1]
+        
+        for idx in sorted_indices:
+            results.append((self.documents[idx], float(similarities[idx])))
+        
+        return results
+
+# NOW define RAGDataExtractor (which uses RAGDocument)
 class RAGDataExtractor:
     def __init__(self):
+        self.embedding_model = None
+        self.vectorizer = None
+        self.tfidf_matrix = None
+        self.document_texts = []
+        self.documents = []
+        self.vector_store = None
+        
         try:
             import torch
             device = torch.device('cpu')
@@ -18,59 +88,36 @@ class RAGDataExtractor:
                 cache_folder='./model_cache'
             )
             
-            if hasattr(self.embedding_model, 'to'):
-                self.embedding_model = self.embedding_model.to(device)
-            
             test_embedding = self.embedding_model.encode(["test sentence"])
             if test_embedding is not None:
                 st.success("✅ RAG System with embeddings initialized successfully")
             else:
                 raise Exception("Test embedding failed")
                 
-            self.text_splitter = SimpleTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
-            )
-            self.vector_store = None
-            self.documents = []
-            
         except Exception as e:
             st.warning(f"⚠️ RAG system using lightweight mode: {e}")
-            self.embedding_model = None
-            self.text_splitter = SimpleTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
-            )
-            self.vector_store = None
-            self.documents = []
             self._setup_lightweight_analyzer()
 
-        try:
-            from modules.rag_core import RAGDocument, SimpleTextSplitter, SimpleVectorStore
-        except ImportError:
-            # Fallback implementations
-            class RAGDocument:
-                def __init__(self, page_content: str, metadata: dict = None):
-                    self.page_content = page_content
-                    self.metadata = metadata if metadata is not None else {}
-
+        # Initialize text splitter
+        self.text_splitter = SimpleTextSplitter(chunk_size=1000, chunk_overlap=200)
+        
     def _setup_lightweight_analyzer(self):
         """Setup lightweight text analysis without heavy embeddings"""
         try:
-            from sklearn.feature_extraction.text import TfidfVectorizer
             self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-            self.tfidf_matrix = None
-            self.document_texts = []
-        except:
+        except Exception as e:
+            st.warning(f"TF-IDF setup failed: {e}")
             self.vectorizer = None
 
     def build_vector_store(self, documents: List[RAGDocument]):
         """Build vector store from documents with fallback options"""
         if not documents:
+            st.warning("No documents to build vector store")
             return None
         
         texts = [doc.page_content for doc in documents]
         if not texts:
+            st.warning("No text content in documents")
             return None
             
         try:
@@ -80,7 +127,7 @@ class RAGDataExtractor:
                 self.vector_store = SimpleVectorStore(self.embedding_model).from_embeddings(text_embeddings)
                 self.documents = documents
                 st.success(f"✅ Vector store built with {len(documents)} documents using embeddings")
-            elif hasattr(self, 'vectorizer') and self.vectorizer is not None:
+            elif self.vectorizer is not None:
                 self.tfidf_matrix = self.vectorizer.fit_transform(texts)
                 self.document_texts = texts
                 self.documents = documents
@@ -94,7 +141,9 @@ class RAGDataExtractor:
             st.warning(f"Vector store creation using basic storage: {e}")
             self.document_texts = texts
             self.documents = documents
-    
+        
+        return self.vector_store
+
     def extract_comprehensive_data(self, uploaded_files: List) -> Dict[str, Any]:
         """Extract comprehensive data from all uploaded files"""
         all_text = ""
@@ -174,7 +223,6 @@ class RAGDataExtractor:
 
     def preprocess_text(self, text: str) -> str:
         """Preprocess extracted text"""
-        import re
         text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
         text = re.sub(r'[^\x00-\x7F]+', ' ', text)  # Remove non-ASCII characters
         return text.strip()
@@ -330,23 +378,3 @@ class RAGDataExtractor:
             'confidence_score': 0.0,
             'status': 'Analysis Completed in Basic Mode'
         }
-
-
-class SimpleVectorStore:
-        def __init__(self, embedding_model=None):
-            self.embedding_model = embedding_model
-        
-        def from_embeddings(self, text_embeddings):
-            return self
-        
-        def similarity_search_with_score(self, query: str, k: int = 5):
-            return []
-    
-class SimpleTextSplitter:
-        def __init__(self, chunk_size=1000, chunk_overlap=200):
-            self.chunk_size = chunk_size
-            self.chunk_overlap = chunk_overlap
-        
-        def split_text(self, text: str):
-            return [text]
-
