@@ -22,7 +22,7 @@ from modules.intelligence_hub import create_institutional_intelligence_hub
 from modules.data_management import create_data_management_module
 from modules.api_documentation import create_api_documentation
 from modules.pdf_reports import create_pdf_report_module
-from modules.system_settings import create_system_settings_module
+from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 
@@ -124,3 +124,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
