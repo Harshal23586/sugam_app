@@ -26,6 +26,8 @@ from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 from modules.rag_data_management import create_rag_data_management
+from modules.rag_core import InstitutionalRAGSystem
+from modules.rag_dashboard import create_rag_dashboard
 
 def main():
     # Safe session state initialization
@@ -195,5 +197,6 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
+
 
 
