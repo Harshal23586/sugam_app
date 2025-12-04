@@ -24,6 +24,7 @@ class InstitutionalAIAnalyzer:
         self.historical_data = load_or_generate_data(self.conn)
         self.performance_metrics = self.define_performance_metrics()
         self.document_requirements = self.define_document_requirements()
+        self.rag_system = InstitutionalRAGSystem(self)
         
         # Initialize RAG with progress indication
         with st.spinner("🔄 Initializing AI Document Analysis System..."):
@@ -466,6 +467,7 @@ def generate_document_recommendations(self, mandatory_sufficiency: float) -> Lis
         recommendations.append("📊 Submit supporting documents for comprehensive assessment")
     
     return recommendations
+
 
 
 
