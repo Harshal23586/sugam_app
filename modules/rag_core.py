@@ -1,4 +1,3 @@
-# rag_core.py - ADD THESE IMPORTS AT THE TOP
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,6 +9,96 @@ import hashlib
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import torch
+
+# Add this class to rag_core.py
+class InstitutionalRAGSystem:
+    """RAG System for institutional data management and analysis"""
+    
+    def __init__(self, analyzer=None):
+        self.analyzer = analyzer
+        self.embedding_model = None
+        self.document_store = {}
+        self.validator = DocumentFormValidator()  # Reuse the existing validator
+        self.initialize_embeddings()
+    
+    def initialize_embeddings(self):
+        """Initialize embedding model"""
+        try:
+            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            return True
+        except Exception as e:
+            print(f"Embedding initialization failed: {e}")
+            self.embedding_model = None
+            return False
+    
+    def add_documents(self, documents: List[Dict]):
+        """Add documents to the RAG system"""
+        if not self.embedding_model:
+            if not self.initialize_embeddings():
+                return False
+        
+        for doc in documents:
+            doc_id = hashlib.md5(doc.get('content', '').encode()).hexdigest()
+            embedding = self.embedding_model.encode(doc.get('content', ''))
+            self.document_store[doc_id] = {
+                'content': doc.get('content', ''),
+                'metadata': doc.get('metadata', {}),
+                'embedding': embedding
+            }
+        
+        return True
+    
+    def search_documents(self, query: str, top_k: int = 5) -> List[Dict]:
+        """Search for relevant documents"""
+        if not self.embedding_model or not self.document_store:
+            return []
+        
+        query_embedding = self.embedding_model.encode(query)
+        results = []
+        
+        for doc_id, doc_data in self.document_store.items():
+            similarity = cosine_similarity(
+                [query_embedding], 
+                [doc_data['embedding']]
+            )[0][0]
+            
+            results.append({
+                'id': doc_id,
+                'content': doc_data['content'][:200] + '...',
+                'metadata': doc_data['metadata'],
+                'similarity': float(similarity)
+            })
+        
+        # Sort by similarity and return top_k
+        results.sort(key=lambda x: x['similarity'], reverse=True)
+        return results[:top_k]
+    
+    def get_institutional_data(self, institution_id: str) -> Dict:
+        """Get structured data for an institution"""
+        if self.analyzer and hasattr(self.analyzer, 'historical_data'):
+            institution_data = self.analyzer.historical_data[
+                self.analyzer.historical_data['institution_id'] == institution_id
+            ]
+            
+            return {
+                'institution_id': institution_id,
+                'records_count': len(institution_data),
+                'years_covered': sorted(institution_data['year'].unique().tolist()),
+                'metrics': institution_data.columns.tolist()
+            }
+        
+        return {
+            'institution_id': institution_id,
+            'documents': [],
+            'extracted_data': {}
+        }
+    
+    def validate_documents(self, uploaded_files: List, form_data: Dict) -> Dict:
+        """Validate documents against form data using the validator"""
+        return self.validator.compare_with_form_data(
+            self.validator.extract_document_data(uploaded_files),
+            form_data
+        )
 
 class DocumentFormValidator:
     """RAG-based validator to compare document-extracted data with form-submitted data"""
@@ -934,3 +1023,4 @@ def export_validation_results(report):
 # In the routing logic, add:
 # elif app_mode == "🔍 Document-Form Validation":
 #     create_rag_validation_dashboard(analyzer)
+__all__ = ['DocumentFormValidator', 'InstitutionalRAGSystem', 'create_rag_validation_dashboard']
