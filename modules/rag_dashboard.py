@@ -73,52 +73,66 @@ def _document_processing_tab(analyzer):
         )
     
     if uploaded_file and institution_id and document_type:
-        # Read file content
-        content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
+        # Process the file based on type
+        if uploaded_file.name.lower().endswith('.pdf'):
+            content = process_pdf_document(uploaded_file, analyzer)
+        else:
+            # For non-PDF files
+            content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
         
-        # Preview
-        with st.expander("📄 Document Preview"):
-            st.text_area("Content", content[:2000], height=300)
-        
-        # Process button
-        if st.button("🔍 Process Document", type="primary"):
-            with st.spinner("Analyzing document with RAG system..."):
-                metadata = {
-                    'institution_id': institution_id,
-                    'document_type': document_type,
-                    'filename': uploaded_file.name,
-                    'upload_date': datetime.now().isoformat(),
-                    'size_kb': len(content) / 1024
-                }
-                
-                result = analyzer.rag_system.process_institutional_document(content, metadata)
-                
-                st.success("✅ Document processed successfully!")
-                
-                # Display results
-                col1, col2, col3 = st.columns(3)
+        if content:
+            # Preview
+            with st.expander("📄 Document Preview"):
+                st.text_area("Content", content[:2000], height=300)
+            
+            # Additional metadata for PDFs
+            if uploaded_file.name.lower().endswith('.pdf'):
+                col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Sections Found", result['total_sections'])
+                    year = st.number_input("Report Year", min_value=2000, max_value=2024, value=2023)
                 with col2:
-                    st.metric("Content Chunks", result['total_chunks'])
-                with col3:
-                    if 'metrics' in result and 'assessment_score' in result['metrics']:
-                        st.metric("Assessment Score", result['metrics']['assessment_score'])
-                
-                # Show extracted sections
-                with st.expander("📋 Extracted Sections"):
-                    for i, section in enumerate(result['sections']):
-                        st.write(f"**{i+1}. {section['title']}** ({section['section_type']})")
-                        st.write(f"Chunks: {section['chunk_count']}")
-                        if 'compliance' in section:
-                            st.progress(section['compliance']['compliance_score'] / 100)
-                            st.caption(f"Compliance: {section['compliance']['compliance_score']:.1f}%")
-                
-                # Show extracted metrics
-                if result['metrics']:
-                    with st.expander("📈 Extracted Metrics"):
-                        for key, value in result['metrics'].items():
-                            st.write(f"**{key.replace('_', ' ').title()}:** {value}")
+                    st.write(f"File: {uploaded_file.name}")
+            
+            # Process button
+            if st.button("🔍 Process Document", type="primary"):
+                with st.spinner("Analyzing document with RAG system..."):
+                    metadata = {
+                        'institution_id': institution_id,
+                        'document_type': document_type,
+                        'filename': uploaded_file.name,
+                        'upload_date': datetime.now().isoformat(),
+                        'size_kb': len(content) / 1024,
+                        'year': year if 'year' in locals() else 2023
+                    }
+                    
+                    result = analyzer.rag_system.process_institutional_document(content, metadata)
+                    
+                    st.success("✅ Document processed successfully!")
+                    
+                    # Display results
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Sections Found", result['total_sections'])
+                    with col2:
+                        st.metric("Content Chunks", result['total_chunks'])
+                    with col3:
+                        if 'metrics' in result and 'assessment_score' in result['metrics']:
+                            st.metric("Assessment Score", f"{result['metrics']['assessment_score']:.1f}")
+                    
+                    # Show extracted sections
+                    with st.expander("📋 Extracted Sections"):
+                        for i, section in enumerate(result['sections']):
+                            st.write(f"**{i+1}. {section['title']}** ({section['section_type']})")
+                            st.write(f"Chunks: {section['chunk_count']}")
+                            if 'compliance' in section:
+                                st.progress(section['compliance']['compliance_score'] / 100)
+                                st.caption(f"Compliance: {section['compliance']['compliance_score']:.1f}%")
+                    
+                    # Show extracted metrics
+                    if result['metrics']:
+                        with st.expander("📈 Extracted Metrics"):
+                            for key, value in result['metrics'].items():
+                                st.write(f"**{key.replace('_', ' ').title()}:** {value}")
 
 def _document_intelligence_tab(analyzer):
     """Document query and intelligence"""
@@ -337,26 +351,7 @@ def process_pdf_document(uploaded_file, analyzer):
         return None
     
     return text
-
-# In your document processing tab:
-if uploaded_file is not None:
-    # Extract text from PDF
-    content = process_pdf_document(uploaded_file, analyzer)
     
-    if content:
-        st.text_area("Extracted Text Preview", content[:2000], height=300)
-        
-        metadata = {
-            'document_type': 'NAAC_SSR',
-            'institution_id': st.text_input("Institution ID", "GHRIEM_Jalgaon"),
-            'year': st.number_input("Report Year", min_value=2000, max_value=2024, value=2019)
-        }
-        
-        if st.button("Process Document"):
-            with st.spinner("Processing document..."):
-                result = analyzer.rag_system.process_institutional_document(content, metadata)
-                st.success(f"Document processed! Found {result.get('total_sections', 0)} sections.")
-
 def _system_configuration_tab(analyzer):
     """RAG system configuration"""
     
