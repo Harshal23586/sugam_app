@@ -3,6 +3,8 @@ import streamlit as st
 import sys
 import os
 from datetime import datetime
+from rag_score import create_rag_validation_dashboard
+
 # Add project root to path
 
 # Page configuration
@@ -325,6 +327,7 @@ def show_main_application(analyzer):
             "📋 Document Analysis", 
             "🤖 Intelligence Hub",
             "🔍 RAG Data Management",
+            "🔍 Document-Form Validation",
             "💾 Data Management",
             "📄 PDF Reports",
             "🌐 API Integration",
@@ -356,6 +359,9 @@ def show_main_application(analyzer):
 
     elif app_mode == "📄 PDF Reports":
         create_pdf_report_module(analyzer)
+    
+    elif app_mode == "🔍 Document-Form Validation":
+        create_rag_validation_dashboard(analyzer)
         
         # Display system information
         st.subheader("System Information")
@@ -378,3 +384,4 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
