@@ -12,50 +12,49 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pickle
 import os
-import tempfile
 
 class InstitutionalDecisionTreeClassifier:
     def __init__(self, analyzer):
         self.analyzer = analyzer
+        
+        # Initialize model components
         self.model = None
         self.label_encoder = LabelEncoder()
         self.features = None
+        self.metrics = {}
         
-        # Initialize session state for model persistence
-        if 'dt_classifier_initialized' not in st.session_state:
-            st.session_state.dt_classifier_initialized = False
-            st.session_state.dt_model = None
-            st.session_state.dt_label_encoder = None
-            st.session_state.dt_features = None
-            st.session_state.dt_metrics = None
-            st.session_state.dt_trained = False
+        # Initialize session state for persistence
+        if 'dt_model_trained' not in st.session_state:
+            st.session_state.dt_model_trained = False
         
-        # Load from session state if available
-        if st.session_state.dt_trained:
+        # Try to load from session state
+        if 'dt_model' in st.session_state:
             self.model = st.session_state.dt_model
+        if 'dt_label_encoder' in st.session_state:
             self.label_encoder = st.session_state.dt_label_encoder
+        if 'dt_features' in st.session_state:
             self.features = st.session_state.dt_features
+        if 'dt_metrics' in st.session_state:
             self.metrics = st.session_state.dt_metrics
         
         self.model_path = "models/decision_tree_model.pkl"
         
     @property
     def trained(self):
-        """Check if model is trained (from session state)"""
-        return st.session_state.get('dt_trained', False)
-    
-    @trained.setter
-    def trained(self, value):
-        """Set trained status in session state"""
-        st.session_state.dt_trained = value
+        """Check if model is trained"""
+        return st.session_state.get('dt_model_trained', False)
     
     def prepare_data(self):
         """Prepare data for decision tree training"""
         try:
             df = self.analyzer.historical_data.copy()
             
-            # Select features for classification
-            feature_columns = [
+            # Display data info
+            st.write(f"📊 Raw data shape: {df.shape}")
+            st.write(f"📊 Risk levels in data: {df['risk_level'].unique()}")
+            
+            # Define all possible features
+            all_features = [
                 'student_faculty_ratio',
                 'phd_faculty_ratio',
                 'research_publications',
@@ -77,22 +76,53 @@ class InstitutionalDecisionTreeClassifier:
                 'performance_score'
             ]
             
-            # Check which features exist in the dataframe
-            available_features = [col for col in feature_columns if col in df.columns]
+            # Check which features actually exist in the data
+            available_features = []
+            for feature in all_features:
+                if feature in df.columns:
+                    # Check if feature has non-null values
+                    if df[feature].notna().sum() > 0:
+                        available_features.append(feature)
+                    else:
+                        st.warning(f"Feature '{feature}' has no valid values")
+                else:
+                    st.warning(f"Feature '{feature}' not found in data columns")
             
-            # Handle missing values
-            df = df.dropna(subset=available_features + ['risk_level'])
+            st.write(f"✅ Available features: {len(available_features)}")
+            st.write(f"📋 Features list: {available_features}")
+            
+            # Remove rows with missing values in target
+            df = df.dropna(subset=['risk_level'])
+            
+            # Handle missing values in features
+            df_clean = df.copy()
+            missing_counts = {}
+            for feature in available_features:
+                missing = df_clean[feature].isna().sum()
+                if missing > 0:
+                    missing_counts[feature] = missing
+                    # Fill with median for numerical features
+                    df_clean[feature] = df_clean[feature].fillna(df_clean[feature].median())
+            
+            if missing_counts:
+                st.warning(f"Missing values filled: {missing_counts}")
             
             # Encode target variable
-            df['risk_level_encoded'] = self.label_encoder.fit_transform(df['risk_level'])
+            df_clean['risk_level_encoded'] = self.label_encoder.fit_transform(df_clean['risk_level'])
             
             # Store features
             self.features = available_features
             
-            return df[available_features], df['risk_level_encoded']
+            st.write(f"📊 Clean data shape: {df_clean.shape}")
+            st.write(f"🎯 Classes: {self.label_encoder.classes_}")
+            st.write(f"📈 Class distribution: {df_clean['risk_level'].value_counts().to_dict()}")
+            
+            return df_clean[available_features], df_clean['risk_level_encoded']
             
         except Exception as e:
-            st.error(f"Error preparing data: {str(e)}")
+            st.error(f"❌ Error preparing data: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
             return None, None
     
     def train_model(self, max_depth=None, min_samples_split=2):
@@ -104,13 +134,19 @@ class InstitutionalDecisionTreeClassifier:
                 st.error("Could not prepare data for training")
                 return False
             
-            # Display data info
-            st.info(f"📊 Training on {X.shape[0]} samples with {X.shape[1]} features")
+            if len(X) == 0:
+                st.error("No data available for training")
+                return False
+            
+            st.success(f"✅ Data prepared: {X.shape[0]} samples × {X.shape[1]} features")
             
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42, stratify=y
             )
+            
+            st.write(f"📚 Training samples: {X_train.shape[0]}")
+            st.write(f"🧪 Test samples: {X_test.shape[0]}")
             
             # Train model
             self.model = DecisionTreeClassifier(
@@ -137,7 +173,8 @@ class InstitutionalDecisionTreeClassifier:
                 'feature_importance': dict(zip(X.columns, self.model.feature_importances_)),
                 'classes': self.label_encoder.classes_.tolist(),
                 'training_samples': X_train.shape[0],
-                'test_samples': X_test.shape[0]
+                'test_samples': X_test.shape[0],
+                'feature_count': X.shape[1]
             }
             
             # Save to session state
@@ -145,8 +182,9 @@ class InstitutionalDecisionTreeClassifier:
             st.session_state.dt_label_encoder = self.label_encoder
             st.session_state.dt_features = self.features
             st.session_state.dt_metrics = self.metrics
-            st.session_state.dt_trained = True
-            st.session_state.dt_classifier_initialized = True
+            st.session_state.dt_model_trained = True
+            
+            st.success("✅ Model trained and saved to session state!")
             
             # Save model to file
             self.save_model()
@@ -154,32 +192,46 @@ class InstitutionalDecisionTreeClassifier:
             return True
             
         except Exception as e:
-            st.error(f"Error training model: {str(e)}")
+            st.error(f"❌ Error training model: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
             return False
     
     def predict_risk(self, institution_data):
         """Predict risk level for new institution data"""
         try:
+            # Check if model is loaded
             if not self.trained:
                 # Try to load from session state
-                if st.session_state.dt_trained:
+                if 'dt_model' in st.session_state and st.session_state.dt_model_trained:
                     self.model = st.session_state.dt_model
                     self.label_encoder = st.session_state.dt_label_encoder
                     self.features = st.session_state.dt_features
+                    self.metrics = st.session_state.dt_metrics
+                    st.session_state.dt_model_trained = True
                 else:
                     # Try to load from file
                     if not self.load_model():
-                        st.warning("Model not trained. Please train the model first.")
+                        st.warning("⚠️ Model not trained. Please train the model first.")
                         return None
+            
+            if self.model is None:
+                st.error("❌ Model is not initialized")
+                return None
             
             # Convert to DataFrame if not already
             if not isinstance(institution_data, pd.DataFrame):
                 institution_data = pd.DataFrame([institution_data])
             
             # Ensure all required features are present
+            if self.features is None:
+                st.error("❌ Features not defined")
+                return None
+            
             missing_features = [f for f in self.features if f not in institution_data.columns]
             if missing_features:
-                st.error(f"Missing features: {missing_features}")
+                st.error(f"❌ Missing features: {missing_features}")
+                st.info(f"📋 Required features: {self.features}")
                 return None
             
             # Select only the required features
@@ -206,7 +258,7 @@ class InstitutionalDecisionTreeClassifier:
             return results[0] if len(results) == 1 else results
             
         except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
+            st.error(f"❌ Error making prediction: {str(e)}")
             import traceback
             st.error(traceback.format_exc())
             return None
@@ -226,22 +278,17 @@ class InstitutionalDecisionTreeClassifier:
                     'metrics': self.metrics
                 }, f)
             
+            st.info(f"💾 Model saved to: {self.model_path}")
             return True
         except Exception as e:
-            st.warning(f"Could not save model: {str(e)}")
+            st.warning(f"⚠️ Could not save model: {str(e)}")
             return False
     
     def load_model(self):
         """Load trained model from file"""
         try:
             if not os.path.exists(self.model_path):
-                # Check if model is in session state
-                if st.session_state.dt_trained:
-                    self.model = st.session_state.dt_model
-                    self.label_encoder = st.session_state.dt_label_encoder
-                    self.features = st.session_state.dt_features
-                    self.metrics = st.session_state.dt_metrics
-                    return True
+                st.warning(f"⚠️ Model file not found: {self.model_path}")
                 return False
             
             with open(self.model_path, 'rb') as f:
@@ -256,27 +303,20 @@ class InstitutionalDecisionTreeClassifier:
                 st.session_state.dt_label_encoder = self.label_encoder
                 st.session_state.dt_features = self.features
                 st.session_state.dt_metrics = self.metrics
-                st.session_state.dt_trained = True
+                st.session_state.dt_model_trained = True
             
+            st.success(f"✅ Model loaded from: {self.model_path}")
             return True
         except Exception as e:
-            st.warning(f"Could not load model: {str(e)}")
-            # Try to load from session state
-            if st.session_state.dt_trained:
-                self.model = st.session_state.dt_model
-                self.label_encoder = st.session_state.dt_label_encoder
-                self.features = st.session_state.dt_features
-                self.metrics = st.session_state.dt_metrics
-                return True
+            st.warning(f"⚠️ Could not load model: {str(e)}")
             return False
     
     def visualize_tree(self, max_depth=3):
         """Visualize decision tree"""
         try:
             if not self.trained:
-                if not self.load_model():
-                    st.warning("Model not trained")
-                    return None
+                st.warning("⚠️ Model not trained")
+                return None
             
             fig, ax = plt.subplots(figsize=(20, 10))
             plot_tree(
@@ -292,14 +332,16 @@ class InstitutionalDecisionTreeClassifier:
             
             return fig
         except Exception as e:
-            st.error(f"Error visualizing tree: {str(e)}")
+            st.error(f"❌ Error visualizing tree: {str(e)}")
             return None
     
     def get_feature_importance(self):
         """Get feature importance as DataFrame"""
         if not self.trained:
-            if not self.load_model():
-                return None
+            return None
+        
+        if self.model is None or self.features is None:
+            return None
         
         importance_df = pd.DataFrame({
             'feature': self.features,
@@ -319,7 +361,9 @@ class InstitutionalDecisionTreeClassifier:
             'feature_count': len(self.features) if self.features else 0,
             'classes': self.label_encoder.classes_.tolist() if hasattr(self.label_encoder, 'classes_') else [],
             'tree_depth': self.model.get_depth() if self.model else None,
-            'accuracy': self.metrics.get('accuracy', 0) if self.metrics else 0
+            'accuracy': self.metrics.get('accuracy', 0) if self.metrics else 0,
+            'training_samples': self.metrics.get('training_samples', 0),
+            'test_samples': self.metrics.get('test_samples', 0)
         }
         
         return info
@@ -333,47 +377,43 @@ def create_decision_tree_module(analyzer):
     # Initialize classifier
     classifier = InstitutionalDecisionTreeClassifier(analyzer)
     
-    # Display model status
-    model_info = classifier.get_model_info()
-    if model_info and model_info['trained']:
-        st.success(f"✅ Model loaded: {len(model_info['features'])} features, "
-                  f"{model_info['accuracy']:.1%} accuracy")
+    # Display data info
+    st.subheader("📊 Dataset Information")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Records", len(analyzer.historical_data))
+    with col2:
+        st.metric("Unique Institutions", analyzer.historical_data['institution_id'].nunique())
+    with col3:
+        st.metric("Data Years", f"{analyzer.historical_data['year'].min()}-{analyzer.historical_data['year'].max()}")
+    
+    # Check if model is trained
+    if classifier.trained:
+        st.success("✅ Model is trained and ready!")
+        model_info = classifier.get_model_info()
+        if model_info:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Accuracy", f"{model_info['accuracy']:.1%}")
+            with col2:
+                st.metric("Features", model_info['feature_count'])
+            with col3:
+                st.metric("Tree Depth", model_info['tree_depth'])
     else:
-        st.warning("⚠️ No trained model found. Please train a model first.")
+        st.warning("⚠️ Model not trained yet. Please train the model first.")
     
     # Sidebar for model controls
     with st.sidebar:
         st.header("🛠️ Model Controls")
         
-        # Model status indicator
-        if classifier.trained:
-            st.success("✅ Model is trained")
-            if model_info:
-                st.metric("Accuracy", f"{model_info['accuracy']:.1%}")
-                st.metric("Features", model_info['feature_count'])
-                st.metric("Tree Depth", model_info['tree_depth'])
-        else:
-            st.warning("⚠️ Model not trained")
-        
-        st.markdown("---")
-        
-        # Load existing model
-        if st.button("📂 Load Model", use_container_width=True):
-            with st.spinner("Loading model..."):
-                if classifier.load_model():
-                    st.success("Model loaded successfully!")
-                    st.rerun()
-                else:
-                    st.error("No saved model found")
-        
         # Training parameters
-        st.markdown("---")
         st.subheader("Training Parameters")
         max_depth = st.slider("Max Tree Depth", 3, 20, 5, 
                              help="Maximum depth of the decision tree")
         min_samples_split = st.slider("Min Samples Split", 2, 20, 2,
                                      help="Minimum number of samples required to split a node")
         
+        # Train button
         if st.button("🚀 Train Model", type="primary", use_container_width=True):
             with st.spinner("Training decision tree model..."):
                 if classifier.train_model(max_depth=max_depth, 
@@ -383,40 +423,25 @@ def create_decision_tree_module(analyzer):
                 else:
                     st.error("❌ Failed to train model")
         
-        # Save model button
         st.markdown("---")
+        
+        # Load model button
+        if st.button("📂 Load Saved Model", use_container_width=True):
+            with st.spinner("Loading model..."):
+                if classifier.load_model():
+                    st.success("✅ Model loaded successfully!")
+                    st.rerun()
+                else:
+                    st.error("❌ No saved model found")
+        
+        # Save model button
         if classifier.trained:
+            st.markdown("---")
             if st.button("💾 Save Model", use_container_width=True):
                 if classifier.save_model():
-                    st.success("Model saved!")
+                    st.success("✅ Model saved!")
                 else:
-                    st.warning("Could not save model")
-            
-            # Export predictions
-            if st.button("📊 Export Predictions", use_container_width=True):
-                # Generate predictions for all institutions
-                df = analyzer.historical_data.copy()
-                predictions = []
-                
-                for idx, row in df.iterrows():
-                    prediction = classifier.predict_risk(row)
-                    if prediction:
-                        row_dict = row.to_dict()
-                        row_dict['predicted_risk'] = prediction['predicted_risk']
-                        row_dict['prediction_confidence'] = prediction['confidence']
-                        predictions.append(row_dict)
-                
-                if predictions:
-                    pred_df = pd.DataFrame(predictions)
-                    csv = pred_df.to_csv(index=False)
-                    
-                    st.download_button(
-                        label="📥 Download Predictions CSV",
-                        data=csv,
-                        file_name="institution_risk_predictions.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                    st.warning("⚠️ Could not save model")
     
     # Create tabs
     tab1, tab2, tab3 = st.tabs([
@@ -429,30 +454,20 @@ def create_decision_tree_module(analyzer):
         st.header("Model Performance Metrics")
         
         if not classifier.trained:
-            st.warning("Please train or load a model first")
+            st.warning("⚠️ Please train or load a model first")
         else:
-            # Display metrics in columns
+            # Display metrics
+            st.subheader("Model Overview")
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.metric("Accuracy", f"{classifier.metrics['accuracy']:.2%}")
             
             with col2:
-                st.metric("Feature Count", len(classifier.features))
+                st.metric("Training Samples", classifier.metrics['training_samples'])
             
             with col3:
-                st.metric("Tree Depth", classifier.model.get_depth())
-            
-            # Data split info
-            st.subheader("Data Split")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Samples", classifier.metrics.get('training_samples', 0) + 
-                         classifier.metrics.get('test_samples', 0))
-            with col2:
-                st.metric("Training Samples", classifier.metrics.get('training_samples', 0))
-            with col3:
-                st.metric("Test Samples", classifier.metrics.get('test_samples', 0))
+                st.metric("Test Samples", classifier.metrics['test_samples'])
             
             # Classification report
             st.subheader("Classification Report")
@@ -499,158 +514,78 @@ def create_decision_tree_module(analyzer):
     with tab2:
         st.header("Predict Risk for New Institution")
         
-        # Always show model status at the top of the tab
         if not classifier.trained:
             st.error("❌ Model not trained or loaded!")
-            st.info("Please go to the sidebar and click '🚀 Train Model' or '📂 Load Model' first.")
+            st.info("📋 Please go to the sidebar and:")
+            st.info("1. Click '🚀 Train Model' to train a new model")
+            st.info("2. OR Click '📂 Load Saved Model' to load an existing model")
             return
         
         st.success("✅ Model is ready for predictions!")
         
-        # Create input form for new institution
-        st.subheader("Enter Institution Metrics")
-        
-        # Create a form with organized sections
+        # Create input form
         with st.form("prediction_form"):
-            # Academic Metrics Section
-            st.markdown("### 📚 Academic Metrics")
-            col1, col2, col3 = st.columns(3)
+            st.subheader("Enter Institution Metrics")
             
-            with col1:
-                student_faculty_ratio = st.slider(
-                    "Student-Faculty Ratio", 5.0, 40.0, 15.0, 0.1,
-                    help="Lower is better"
-                )
+            # Organize features into sections
+            sections = {
+                "Academic Metrics": [
+                    ('student_faculty_ratio', 'slider', (5.0, 40.0, 15.0, 0.1)),
+                    ('phd_faculty_ratio', 'slider', (0.1, 1.0, 0.5, 0.01)),
+                    ('higher_education_rate', 'slider', (5.0, 50.0, 20.0, 0.1))
+                ],
+                "Research Metrics": [
+                    ('research_publications', 'number', (0, 100, 20, 1)),
+                    ('research_grants_amount', 'number', (0, 1000000, 100000, 10000)),
+                    ('patents_filed', 'number', (0, 20, 3, 1)),
+                    ('industry_collaborations', 'number', (0, 20, 5, 1))
+                ],
+                "Infrastructure Metrics": [
+                    ('digital_infrastructure_score', 'slider', (1.0, 10.0, 6.0, 0.1)),
+                    ('library_volumes', 'number', (1000, 50000, 10000, 1000)),
+                    ('laboratory_equipment_score', 'slider', (1.0, 10.0, 7.0, 0.1))
+                ],
+                "Administrative Metrics": [
+                    ('financial_stability_score', 'slider', (1.0, 10.0, 7.0, 0.1)),
+                    ('compliance_score', 'slider', (1.0, 10.0, 7.0, 0.1)),
+                    ('administrative_efficiency', 'slider', (1.0, 10.0, 6.5, 0.1))
+                ],
+                "Placement Metrics": [
+                    ('placement_rate', 'slider', (40.0, 100.0, 75.0, 0.1)),
+                    ('entrepreneurship_cell_score', 'slider', (1.0, 10.0, 6.0, 0.1))
+                ],
+                "Outreach Metrics": [
+                    ('community_projects', 'number', (0, 20, 5, 1)),
+                    ('rural_outreach_score', 'slider', (1.0, 10.0, 6.0, 0.1)),
+                    ('inclusive_education_index', 'slider', (1.0, 10.0, 6.5, 0.1))
+                ],
+                "Overall Performance": [
+                    ('performance_score', 'slider', (1.0, 10.0, 5.5, 0.1))
+                ]
+            }
             
-            with col2:
-                phd_faculty_ratio = st.slider(
-                    "PhD Faculty Ratio", 0.1, 1.0, 0.5, 0.01,
-                    help="Higher is better"
-                )
+            input_data = {}
             
-            with col3:
-                higher_education_rate = st.slider(
-                    "Higher Education Rate (%)", 5.0, 50.0, 20.0, 0.1,
-                    help="Percentage of students pursuing higher education"
-                )
-            
-            # Research Metrics Section
-            st.markdown("### 🔬 Research Metrics")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                research_publications = st.number_input(
-                    "Research Publications", 0, 100, 20,
-                    help="Number of research publications"
-                )
-            
-            with col2:
-                research_grants_amount = st.number_input(
-                    "Research Grants (₹)", 0, 1000000, 100000,
-                    step=10000,
-                    help="Total research grant amount in ₹"
-                )
-            
-            with col3:
-                patents_filed = st.number_input(
-                    "Patents Filed", 0, 20, 3,
-                    help="Number of patents filed"
-                )
-            
-            with col4:
-                industry_collaborations = st.number_input(
-                    "Industry Collaborations", 0, 20, 5,
-                    help="Number of industry collaborations"
-                )
-            
-            # Infrastructure Metrics Section
-            st.markdown("### 🏢 Infrastructure Metrics")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                digital_infrastructure_score = st.slider(
-                    "Digital Infrastructure Score", 1.0, 10.0, 6.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            with col2:
-                library_volumes = st.number_input(
-                    "Library Volumes", 1000, 50000, 10000, 1000,
-                    help="Number of books in library"
-                )
-            
-            with col3:
-                laboratory_equipment_score = st.slider(
-                    "Lab Equipment Score", 1.0, 10.0, 7.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            # Administrative Metrics Section
-            st.markdown("### 📊 Administrative Metrics")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                financial_stability_score = st.slider(
-                    "Financial Stability Score", 1.0, 10.0, 7.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            with col2:
-                compliance_score = st.slider(
-                    "Compliance Score", 1.0, 10.0, 7.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            with col3:
-                administrative_efficiency = st.slider(
-                    "Administrative Efficiency", 1.0, 10.0, 6.5, 0.1,
-                    help="Score out of 10"
-                )
-            
-            # Placement Metrics Section
-            st.markdown("### 💼 Placement Metrics")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                placement_rate = st.slider(
-                    "Placement Rate (%)", 40.0, 100.0, 75.0, 0.1,
-                    help="Percentage of students placed"
-                )
-            
-            with col2:
-                entrepreneurship_cell_score = st.slider(
-                    "Entrepreneurship Cell Score", 1.0, 10.0, 6.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            # Outreach and Quality Metrics Section
-            st.markdown("### 🌍 Outreach & Quality Metrics")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                community_projects = st.number_input(
-                    "Community Projects", 0, 20, 5,
-                    help="Number of community projects"
-                )
-            
-            with col2:
-                rural_outreach_score = st.slider(
-                    "Rural Outreach Score", 1.0, 10.0, 6.0, 0.1,
-                    help="Score out of 10"
-                )
-            
-            with col3:
-                inclusive_education_index = st.slider(
-                    "Inclusive Education Index", 1.0, 10.0, 6.5, 0.1,
-                    help="Score out of 10"
-                )
-            
-            # Overall Performance
-            st.markdown("### 🏆 Overall Performance")
-            performance_score = st.slider(
-                "Overall Performance Score", 1.0, 10.0, 5.5, 0.1,
-                help="Overall performance score"
-            )
+            for section_name, features in sections.items():
+                st.markdown(f"### {section_name}")
+                cols = st.columns(min(len(features), 3))
+                
+                for idx, (feature_name, input_type, params) in enumerate(features):
+                    col_idx = idx % 3
+                    with cols[col_idx]:
+                        if input_type == 'slider':
+                            min_val, max_val, default_val, step = params
+                            value = st.slider(
+                                feature_name.replace('_', ' ').title(),
+                                min_val, max_val, default_val, step
+                            )
+                        else:  # number
+                            min_val, max_val, default_val, step = params
+                            value = st.number_input(
+                                feature_name.replace('_', ' ').title(),
+                                min_val, max_val, default_val, step
+                            )
+                        input_data[feature_name] = value
             
             # Predict button
             predict_button = st.form_submit_button("🔮 Predict Risk Level", 
@@ -658,29 +593,6 @@ def create_decision_tree_module(analyzer):
                                                  use_container_width=True)
             
             if predict_button:
-                # Prepare input data
-                input_data = {
-                    'student_faculty_ratio': student_faculty_ratio,
-                    'phd_faculty_ratio': phd_faculty_ratio,
-                    'research_publications': research_publications,
-                    'research_grants_amount': research_grants_amount,
-                    'patents_filed': patents_filed,
-                    'industry_collaborations': industry_collaborations,
-                    'digital_infrastructure_score': digital_infrastructure_score,
-                    'library_volumes': library_volumes,
-                    'laboratory_equipment_score': laboratory_equipment_score,
-                    'financial_stability_score': financial_stability_score,
-                    'compliance_score': compliance_score,
-                    'administrative_efficiency': administrative_efficiency,
-                    'placement_rate': placement_rate,
-                    'higher_education_rate': higher_education_rate,
-                    'entrepreneurship_cell_score': entrepreneurship_cell_score,
-                    'community_projects': community_projects,
-                    'rural_outreach_score': rural_outreach_score,
-                    'inclusive_education_index': inclusive_education_index,
-                    'performance_score': performance_score
-                }
-                
                 with st.spinner("Analyzing institution data..."):
                     prediction = classifier.predict_risk(input_data)
                     
@@ -720,7 +632,7 @@ def create_decision_tree_module(analyzer):
                             <div style='padding: 20px; background-color: #f8f9fa; border-radius: 10px; border-left: 5px solid {color};'>
                             <h2 style='color: {color}; margin-bottom: 10px;'>{emoji} {risk_level}</h2>
                             <p style='font-size: 16px;'><strong>Confidence:</strong> {confidence:.1%}</p>
-                            <p style='font-size: 14px; color: #6c757d;'>Based on analysis of 19 performance metrics</p>
+                            <p style='font-size: 14px; color: #6c757d;'>Based on analysis of {len(classifier.features)} performance metrics</p>
                             </div>
                             """, unsafe_allow_html=True)
                         
@@ -752,36 +664,12 @@ def create_decision_tree_module(analyzer):
                                     title="Risk Probability Distribution")
                         fig.update_layout(yaxis_tickformat='.0%')
                         st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Show probabilities table
-                        with st.expander("View Detailed Probabilities"):
-                            st.dataframe(prob_df.style.format({'Probability': '{:.2%}'}))
-                        
-                        # Feature analysis
-                        st.subheader("🔍 Key Influencing Factors")
-                        importance_df = classifier.get_feature_importance()
-                        if importance_df is not None:
-                            # Get top 5 features
-                            top_features = importance_df.head(5)
-                            
-                            for _, row in top_features.iterrows():
-                                feature_name = row['feature'].replace('_', ' ').title()
-                                feature_value = input_data.get(row['feature'], 'N/A')
-                                importance = row['importance']
-                                
-                                col1, col2, col3 = st.columns([3, 1, 1])
-                                with col1:
-                                    st.write(f"**{feature_name}**")
-                                with col2:
-                                    st.write(f"Value: {feature_value}")
-                                with col3:
-                                    st.progress(float(importance), text=f"Impact: {importance:.1%}")
     
     with tab3:
         st.header("Model Visualizations")
         
         if not classifier.trained:
-            st.warning("Please train or load a model first")
+            st.warning("⚠️ Please train or load a model first")
         else:
             # Decision tree visualization
             st.subheader("Decision Tree Structure")
@@ -793,64 +681,3 @@ def create_decision_tree_module(analyzer):
             if fig:
                 st.pyplot(fig)
                 st.caption("Note: Full tree visualization might be complex. Consider using depth 3-4 for clarity.")
-            
-            # Feature importance sunburst
-            st.subheader("Interactive Feature Importance")
-            importance_df = classifier.get_feature_importance()
-            if importance_df is not None:
-                # Group features by category
-                def categorize_feature(feature):
-                    if any(f in feature for f in ['student', 'phd', 'education']):
-                        return 'Academic'
-                    elif any(f in feature for f in ['research', 'patent', 'industry']):
-                        return 'Research'
-                    elif any(f in feature for f in ['infrastructure', 'library', 'laboratory']):
-                        return 'Infrastructure'
-                    elif any(f in feature for f in ['financial', 'compliance', 'administrative']):
-                        return 'Administration'
-                    elif any(f in feature for f in ['placement', 'entrepreneurship']):
-                        return 'Placement'
-                    elif any(f in feature for f in ['community', 'rural', 'inclusive']):
-                        return 'Outreach'
-                    elif 'performance' in feature:
-                        return 'Quality'
-                    else:
-                        return 'Other'
-                
-                importance_df['category'] = importance_df['feature'].apply(categorize_feature)
-                
-                # Create sunburst chart
-                fig = px.sunburst(
-                    importance_df,
-                    path=['category', 'feature'],
-                    values='importance',
-                    color='importance',
-                    color_continuous_scale='RdYlGn',
-                    title="Feature Importance Hierarchy"
-                )
-                fig.update_layout(height=600)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            # Model comparison suggestion
-            st.subheader("📝 Model Insights")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.info("""
-                **✅ Decision Tree Advantages:**
-                - Easy to interpret and visualize
-                - No feature scaling needed
-                - Handles both numerical and categorical data
-                - Non-parametric model
-                - Shows decision rules clearly
-                """)
-            
-            with col2:
-                st.warning("""
-                **⚠️ Considerations:**
-                - Can overfit without proper depth control
-                - Sensitive to small data changes
-                - Biased towards features with many levels
-                - Consider Random Forest for better generalization
-                - Regular pruning may be needed
-                """)
