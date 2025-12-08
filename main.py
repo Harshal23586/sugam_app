@@ -3,6 +3,14 @@ import streamlit as st
 import sys
 import os
 from datetime import datetime
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+import warnings
+warnings.filterwarnings('ignore')
 #from rag_core import create_rag_validation_dashboard
 #from modules.rag_core import create_rag_validation_dashboard
 from modules.decision_tree_classifier import create_decision_tree_module
@@ -33,6 +41,309 @@ from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 #from modules.rag_core import InstitutionalRAGSystem
 from modules.rag_dashboard import create_rag_dashboard
+
+def predict_performance_tab(analyzer):
+    """Tab for predicting 5-year performance using logistic regression"""
+    st.header("📊 Institutional Performance Prediction (Logistic Regression)")
+    
+    # Load data
+    data = analyzer.historical_data.copy()
+    
+    # Define available parameters (excluding performance_score and other non-numeric/categorical)
+    all_parameters = [
+        'student_faculty_ratio', 'phd_faculty_ratio', 'research_publications',
+        'research_grants_amount', 'patents_filed', 'industry_collaborations',
+        'digital_infrastructure_score', 'library_volumes', 'laboratory_equipment_score',
+        'financial_stability_score', 'compliance_score', 'administrative_efficiency',
+        'placement_rate', 'higher_education_rate', 'entrepreneurship_cell_score',
+        'community_projects', 'rural_outreach_score', 'inclusive_education_index'
+    ]
+    
+    # Define target labels based on approval_recommendation
+    def get_target_label(recommendation):
+        if 'Provisional' in str(recommendation) or 'Conditional' in str(recommendation):
+            return 1  # Good performance
+        elif 'Approval' in str(recommendation):
+            return 1  # Good performance
+        elif 'Rejection' in str(recommendation):
+            return 0  # Poor performance
+        else:
+            return 0  # Default to poor performance
+    
+    # Create a new dataframe for training
+    train_data = []
+    
+    for inst_id in data['institution_id'].unique():
+        inst_data = data[data['institution_id'] == inst_id].sort_values('year')
+        
+        # We need at least 6 years of data for prediction (5 years to predict next 5 years)
+        if len(inst_data) >= 6:
+            for i in range(len(inst_data) - 5):
+                # Get 5-year window
+                window_data = inst_data.iloc[i:i+5]
+                
+                # Calculate average of parameters for the 5-year window
+                features = {}
+                for param in all_parameters:
+                    if param in window_data.columns:
+                        features[param] = window_data[param].mean()
+                    else:
+                        features[param] = 0
+                
+                # Get the target for next 5 years
+                future_data = inst_data.iloc[i+5:min(i+10, len(inst_data))]
+                if len(future_data) > 0:
+                    # Check if majority of future years have good performance
+                    future_labels = future_data['approval_recommendation'].apply(get_target_label)
+                    target = 1 if future_labels.mean() > 0.5 else 0
+                    
+                    features['institution_id'] = inst_id
+                    features['start_year'] = window_data['year'].min()
+                    features['end_year'] = window_data['year'].max()
+                    features['target'] = target
+                    
+                    train_data.append(features)
+    
+    if not train_data:
+        st.error("Insufficient data for prediction. Need more historical data.")
+        return
+    
+    train_df = pd.DataFrame(train_data)
+    
+    # Display training data info
+    st.subheader("📈 Prediction Model Configuration")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Samples", len(train_df))
+    with col2:
+        good_perf = train_df['target'].sum()
+        st.metric("Good Performance Samples", good_perf)
+    with col3:
+        poor_perf = len(train_df) - good_perf
+        st.metric("Poor Performance Samples", poor_perf)
+    
+    # Parameter selection
+    st.subheader("🎯 Select Parameters for Prediction")
+    
+    selected_params = st.multiselect(
+        "Choose parameters for the prediction model:",
+        all_parameters,
+        default=all_parameters[:8]  # Default to first 8 parameters
+    )
+    
+    if not selected_params:
+        st.warning("Please select at least one parameter for prediction.")
+        return
+    
+    # Train the model
+    st.subheader("🤖 Model Training")
+    
+    # Prepare features and target
+    X = train_df[selected_params]
+    y = train_df['target']
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Train logistic regression
+    model = LogisticRegression(random_state=42, max_iter=1000)
+    model.fit(X_train_scaled, y_train)
+    
+    # Evaluate model
+    y_pred = model.predict(X_test_scaled)
+    accuracy = accuracy_score(y_test, y_pred)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Model Accuracy", f"{accuracy:.2%}")
+    with col2:
+        st.metric("Training Samples", len(X_train))
+    with col3:
+        st.metric("Test Samples", len(X_test))
+    
+    # Show feature importance
+    st.subheader("📊 Feature Importance")
+    feature_importance = pd.DataFrame({
+        'Feature': selected_params,
+        'Coefficient': model.coef_[0]
+    }).sort_values('Coefficient', key=abs, ascending=False)
+    
+    st.dataframe(feature_importance, use_container_width=True)
+    
+    # Prediction section
+    st.subheader("🔮 Predict Future Performance")
+    
+    # Institution selection
+    institutions = sorted(data['institution_id'].unique())
+    selected_institution = st.selectbox(
+        "Select Institution to Predict:",
+        institutions,
+        index=0
+    )
+    
+    # Get latest 5 years data for the selected institution
+    inst_data = data[data['institution_id'] == selected_institution].sort_values('year', ascending=False)
+    
+    if len(inst_data) < 5:
+        st.warning(f"Selected institution needs at least 5 years of data. Currently has {len(inst_data)} years.")
+        return
+    
+    latest_5_years = inst_data.head(5).sort_values('year')
+    
+    # Display selected institution info
+    inst_name = inst_data.iloc[0]['institution_name'] if 'institution_name' in inst_data.columns else selected_institution
+    st.info(f"**Institution:** {inst_name} ({selected_institution})")
+    
+    # Calculate averages for selected parameters
+    prediction_features = {}
+    for param in selected_params:
+        if param in latest_5_years.columns:
+            prediction_features[param] = latest_5_years[param].mean()
+        else:
+            prediction_features[param] = 0
+    
+    # Create feature dataframe
+    prediction_df = pd.DataFrame([prediction_features])
+    
+    # Scale features
+    prediction_scaled = scaler.transform(prediction_df)
+    
+    # Make prediction
+    prediction = model.predict(prediction_scaled)[0]
+    prediction_proba = model.predict_proba(prediction_scaled)[0]
+    
+    # Display results
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📋 Input Data (Last 5 Years Average)")
+        # Get common columns between display and selected parameters
+        display_cols = ['year'] + [col for col in selected_params if col in latest_5_years.columns]
+        display_df = latest_5_years[display_cols]
+        st.dataframe(display_df, use_container_width=True)
+        
+        # Show averages
+        avg_df = pd.DataFrame([prediction_features])
+        st.write("**Averages:**")
+        st.dataframe(avg_df, use_container_width=True)
+    
+    with col2:
+        st.subheader("🎯 Prediction Results")
+        
+        # Performance indicator
+        if prediction == 1:
+            st.success("✅ **Prediction: GOOD PERFORMANCE**")
+            st.markdown("""
+            <div style='background-color: #d4edda; color: #155724; padding: 15px; border-radius: 5px;'>
+            <h4>🎯 Expected Performance (Next 5 Years):</h4>
+            <p>The model predicts that this institution is likely to maintain or achieve 
+            <strong>good performance</strong> in the next 5 years based on historical trends.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.error("❌ **Prediction: POOR PERFORMANCE**")
+            st.markdown("""
+            <div style='background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px;'>
+            <h4>⚠️ Expected Performance (Next 5 Years):</h4>
+            <p>The model predicts that this institution may face <strong>performance challenges</strong> 
+            in the next 5 years based on historical trends.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Show probabilities
+        st.subheader("📊 Prediction Confidence")
+        
+        prob_good = prediction_proba[1] * 100
+        prob_poor = prediction_proba[0] * 100
+        
+        col_prob1, col_prob2 = st.columns(2)
+        with col_prob1:
+            st.metric("Good Performance Probability", f"{prob_good:.1f}%")
+        with col_prob2:
+            st.metric("Poor Performance Probability", f"{prob_poor:.1f}%")
+        
+        # Progress bars
+        st.progress(prob_good/100, text=f"Good Performance Confidence: {prob_good:.1f}%")
+        st.progress(prob_poor/100, text=f"Poor Performance Confidence: {prob_poor:.1f}%")
+    
+    # Show historical performance for context
+    st.subheader("📈 Historical Performance Context")
+    
+    # Select columns that exist in the dataframe
+    available_cols = ['year', 'approval_recommendation', 'risk_level', 'performance_score']
+    available_cols += [col for col in selected_params[:5] if col in inst_data.columns]
+    
+    historical_display = inst_data[available_cols]
+    st.dataframe(historical_display, use_container_width=True)
+    
+    # Recommendations based on prediction
+    st.subheader("💡 Recommendations")
+    
+    if prediction == 0:  # Poor performance predicted
+        st.warning("""
+        ### Areas for Improvement:
+        
+        Based on the prediction, consider focusing on:
+        
+        1. **Parameter Analysis**: Review the lowest-performing parameters from the feature importance
+        2. **Benchmarking**: Compare with top-performing institutions
+        3. **Strategic Planning**: Develop 5-year improvement plans
+        4. **Resource Allocation**: Focus resources on critical areas
+        5. **Monitoring**: Implement quarterly performance tracking
+        """)
+    else:  # Good performance predicted
+        st.success("""
+        ### Maintenance Strategy:
+        
+        To maintain good performance:
+        
+        1. **Continuous Monitoring**: Keep tracking key performance indicators
+        2. **Innovation**: Continue to innovate and improve
+        3. **Best Practices**: Share successful strategies with other institutions
+        4. **Sustainability**: Ensure long-term sustainability of good practices
+        5. **Excellence Goals**: Aim for higher levels of accreditation
+        """)
+    
+    # Export prediction results
+    st.subheader("📥 Export Results")
+    
+    if st.button("📊 Export Prediction Report"):
+        report_data = {
+            'institution_id': selected_institution,
+            'institution_name': inst_name,
+            'prediction_date': datetime.now().strftime("%Y-%m-%d"),
+            'prediction_horizon': 'Next 5 Years',
+            'predicted_performance': 'Good' if prediction == 1 else 'Poor',
+            'confidence_good': f"{prob_good:.1f}%",
+            'confidence_poor': f"{prob_poor:.1f}%",
+            'model_accuracy': f"{accuracy:.2%}",
+            'parameters_used': ', '.join(selected_params),
+            'data_years_used': f"{latest_5_years['year'].min()}-{latest_5_years['year'].max()}"
+        }
+        
+        # Add parameter averages
+        for param, value in prediction_features.items():
+            report_data[f'avg_{param}'] = value
+        
+        report_df = pd.DataFrame([report_data])
+        
+        # Convert to CSV
+        csv = report_df.to_csv(index=False)
+        
+        st.download_button(
+            label="Download Prediction Report (CSV)",
+            data=csv,
+            file_name=f"performance_prediction_{selected_institution}_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
 
 def main():
     # Safe session state initialization
@@ -146,7 +457,8 @@ def show_landing_page():
             "✅ **Technology-Driven Assessment**: Minimize manual involvement through AI and automation",
             "✅ **Composite Assessment**: Amalgamate programme and institutional accreditation",
             "✅ **Stakeholder Crowdsourcing**: Enhanced verification through stakeholder participation",
-            "✅ **Choice-Based Ranking**: Customizable ranking system for diverse user needs"
+            "✅ **Choice-Based Ranking**: Customizable ranking system for diverse user needs",
+            "✅ **AI Performance Prediction**: Logistic regression model to predict 5-year institutional performance"
         ]
         
         for feature in features:
@@ -333,6 +645,7 @@ def show_main_application(analyzer):
             "🔍 RAG Data Management",
             "🔍 Document-Form Validation",
             "🌳 Decision Tree Classifier",
+            "🔮 Performance Prediction (Logistic Regression)",
             "💾 Data Management",
             "📄 PDF Reports",
             "🌐 API Integration",
@@ -380,6 +693,9 @@ def show_main_application(analyzer):
             st.metric("Unique Institutions", analyzer.historical_data['institution_id'].nunique())
         with col3:
             st.metric("Data Years", f"{analyzer.historical_data['year'].min()}-{analyzer.historical_data['year'].max()}")
+    
+    elif app_mode == "🔮 Performance Prediction (Logistic Regression)":
+        predict_performance_tab(analyzer)
     
     # Footer for main application
     st.markdown("---")
