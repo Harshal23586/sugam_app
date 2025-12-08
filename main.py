@@ -702,7 +702,7 @@ def show_landing_page():
                 
                 if validation_passed:
                     # Default credentials for demonstration
-                    if inst_username == "institute" and inst_password == "institute123":
+                    if inst_username == "institute" and inst_password == "Institute123":
                         st.session_state.institution_user = inst_username
                         st.session_state.user_role = "Institution"
                         st.success("✅ Login successful! Redirecting...")
@@ -752,7 +752,7 @@ def show_landing_page():
                 
                 if validation_passed:
                     # Default credentials for demonstration
-                    if ugc_username == "ugc" and ugc_password == "ugc123":
+                    if ugc_username == "ugc123" and ugc_password == "Ugc123456":
                         st.session_state.ugc_aicte_user = ugc_username
                         st.session_state.user_role = "UGC/AICTE Officer"
                         st.success("✅ Login successful! Redirecting...")
@@ -967,3 +967,4 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
