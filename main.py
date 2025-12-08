@@ -41,7 +41,16 @@ def main():
     if st.session_state.institution_user is not None:
         try:
             analyzer = InstitutionalAIAnalyzer()
-            create_institution_dashboard(analyzer, st.session_state.institution_user)
+            # Create a proper user object/dictionary that create_institution_dashboard expects
+            user_info = {
+                'username': st.session_state.institution_user,
+                'role': 'institution',
+                'institution_id': 'INST001',  # Default institution ID
+                'name': 'Sample Institution'
+            }
+            create_institution_dashboard(analyzer, user_info)
+            
+            # Add logout button in sidebar if it exists
             if st.sidebar.button("🚪 Logout"):
                 st.session_state.institution_user = None
                 st.session_state.user_role = None
@@ -49,9 +58,19 @@ def main():
             return
         except Exception as e:
             st.error(f"❌ System initialization error: {str(e)}")
-            # If error occurs, clear session and show landing page
-            st.session_state.institution_user = None
-            st.session_state.user_role = None
+            st.write("Debug: Attempting alternative dashboard call...")
+            
+            # Try alternative approach
+            try:
+                # Try calling without user_info
+                analyzer = InstitutionalAIAnalyzer()
+                create_institution_dashboard(analyzer)
+                return
+            except Exception as e2:
+                st.error(f"❌ Alternative approach also failed: {str(e2)}")
+                # If error occurs, clear session and show landing page
+                st.session_state.institution_user = None
+                st.session_state.user_role = None
     
     # Check if UGC/AICTE user is logged in
     if st.session_state.ugc_aicte_user is not None:
@@ -78,7 +97,21 @@ def show_landing_page():
         try:
             st.image("assets/logo.jpg", width=200)
         except:
-            st.image("logo.jpg", width=200)  # Fallback if assets folder doesn't exist
+            # Try different common paths
+            try:
+                st.image("logo.png", width=200)
+            except:
+                try:
+                    st.image("logo.jpeg", width=200)
+                except:
+                    # Fallback placeholder
+                    st.markdown("""
+                    <div style="width: 200px; height: 200px; background-color: #0047AB; 
+                                color: white; display: flex; align-items: center; 
+                                justify-content: center; border-radius: 10px; font-size: 24px;">
+                        <strong>SUGAM</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
     
     with col2:
         st.markdown('<h1 class="main-header">सुगम - SUGAM - Smart Unified Governance and Approval Management</h1>', unsafe_allow_html=True)
@@ -232,6 +265,17 @@ def show_landing_page():
             st.markdown(f"**{stage}**")
             for task in tasks:
                 st.markdown(f"• {task}")
+    
+    # Alternative: Use the original institution login module
+    st.markdown("---")
+    st.subheader("🏫 Alternative Institution Access")
+    
+    with st.expander("Use Original Institution Login System"):
+        try:
+            analyzer = InstitutionalAIAnalyzer()
+            create_institution_login(analyzer)
+        except Exception as e:
+            st.warning(f"Original login system unavailable: {str(e)}")
     
     # Footer with current date
     st.markdown("---")
