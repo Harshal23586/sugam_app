@@ -327,55 +327,125 @@ class InstitutionalRAGSystem:
             'total_chunks': sum(s['chunk_count'] for s in processed_sections)
         }
     
-    def _extract_metrics(self, content: str, doc_type: str) -> Dict[str, Any]:
-        """Extract key performance metrics from document"""
+    def _extract_metrics(self, content, doc_type):
+        """Extract key metrics from document content with robust error handling"""
         metrics = {}
+    
+        # Basic metrics (always safe)
+        metrics['word_count'] = len(content.split())
+        metrics['char_count'] = len(content)
+        metrics['paragraph_count'] = len([p for p in content.split('\n') if p.strip()])
+    
+        # Helper function to safely extract and convert numbers
+        def extract_number(text, patterns):
+            for pattern in patterns:
+                matches = re.findall(pattern, text, re.IGNORECASE)
+                if matches:
+                    try:
+                        # Get first match and clean it
+                        match = matches[0]
+                        # Remove commas, spaces, currency symbols
+                        clean = re.sub(r'[^\d\.\-]', '', match)
+                        if clean:  # Check if we have something to convert
+                            return float(clean)
+                    except (ValueError, IndexError, AttributeError):
+                        continue
+            return None
+    
+        # Document type specific metrics
+        if doc_type == "NAAC Report":
+            # Extract NAAC grade
+            grade_pattern = r'\b([ABC][+]{0,2})\b'
+            grades = re.findall(grade_pattern, content.upper())
+            if grades:
+                metrics['naac_grade'] = grades[0]
         
-        # GPA/Grade extraction
-        grade_patterns = [
-            r'CGPA[\s:]*([\d.]+)',
-            r'Grade[\s:]*([A-Z+]+)',
-            r'Score[\s:]*([\d.]+)\s*/\s*[\d.]+'
-        ]
+            # Extract scores - more specific pattern
+            score_pattern = r'(?:\bscore\b|\bgrade\b|\bpoints?\b)[^\d]*(\d{1,3}(?:\.\d{1,2})?)'
+            scores = extract_number(content, [score_pattern])
+            if scores is not None:
+                metrics['naac_score'] = scores
+    
+        elif doc_type == "Financial Statement":
+            # Extract financial metrics with safer patterns
+            revenue_patterns = [
+                r'total\s*(?:revenue|income)[^\d]*([\d,]+(?:\.\d{2})?)',
+                r'revenue[^\d]*([\d,]+(?:\.\d{2})?)',
+                r'income[^\d]*([\d,]+(?:\.\d{2})?)',
+                r'₹\s*([\d,]+(?:\.\d{2})?)'  # Indian Rupee symbol
+            ]
         
-        for pattern in grade_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            if matches:
-                metrics['assessment_score'] = matches[-1]
-                break
+            revenue = extract_number(content, revenue_patterns)
+            if revenue is not None:
+                metrics['revenue'] = revenue
         
-        # Financial metrics
-        financial_patterns = {
-            'revenue': r'Revenue[\s:]*([\d,.]+)',
-            'expenditure': r'Expenditure[\s:]*([\d,.]+)',
-            'profit': r'Profit[\s:]*([\d,.]+)',
-            'funding': r'Funding[\s:]*([\d,.]+)'
-        }
+            # Extract profit
+            profit_patterns = [
+                r'(?:net\s*)?profit[^\d]*([\d,]+(?:\.\d{2})?)',
+                r'profit\s*(?:after\s*tax|before\s*tax)[^\d]*([\d,]+(?:\.\d{2})?)'
+            ]
         
-        for metric, pattern in financial_patterns.items():
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            if matches:
-                # Clean number
-                clean_num = matches[-1].replace(',', '')
-                if '.' in clean_num:
-                    metrics[metric] = float(clean_num)
+            profit = extract_number(content, profit_patterns)
+            if profit is not None:
+                metrics['profit'] = profit
+    
+        elif doc_type == "Audit Report":
+            # Extract audit opinion
+            content_lower = content.lower()
+            if 'clean' in content_lower or 'unqualified' in content_lower:
+                metrics['audit_opinion'] = 'Clean'
+            elif 'qualified' in content_lower:
+                metrics['audit_opinion'] = 'Qualified'
+            elif 'adverse' in content_lower:
+                metrics['audit_opinion'] = 'Adverse'
+            elif 'disclaimer' in content_lower:
+                metrics['audit_opinion'] = 'Disclaimer'
+            else:
+                metrics['audit_opinion'] = 'Not Specified'
+    
+        # Calculate assessment score with safety
+        try:
+            assessment_factors = []
+        
+            if 'naac_score' in metrics and metrics['naac_score'] is not None:
+                score = metrics['naac_score']
+                if score >= 3.5:
+                    assessment_factors.append(1.0)
+                elif score >= 3.0:
+                    assessment_factors.append(0.8)
+                elif score >= 2.5:
+                    assessment_factors.append(0.6)
                 else:
-                    metrics[metric] = int(clean_num)
+                    assessment_factors.append(0.4)
         
-        # Academic metrics
-        academic_patterns = {
-            'students': r'Students[\s:]*([\d,]+)',
-            'faculty': r'Faculty[\s:]*([\d,]+)',
-            'publications': r'Publications[\s:]*([\d,]+)',
-            'placements': r'Placements[\s:]*([\d,]+)'
-        }
+            if 'revenue' in metrics and metrics['revenue'] is not None:
+                assessment_factors.append(0.5)
         
-        for metric, pattern in academic_patterns.items():
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            if matches:
-                clean_num = matches[-1].replace(',', '')
-                metrics[metric] = int(clean_num)
+            if 'profit' in metrics and metrics['profit'] is not None and metrics['profit'] > 0:
+                assessment_factors.append(0.7)
         
+            if 'audit_opinion' in metrics and metrics['audit_opinion'] == 'Clean':
+                assessment_factors.append(0.9)
+        
+            # Calculate overall score
+            if assessment_factors:
+                avg_factor = sum(assessment_factors) / len(assessment_factors)
+                metrics['assessment_score'] = round(avg_factor * 100, 1)
+            else:
+                # Default based on document quality
+                word_count = metrics.get('word_count', 0)
+                if word_count > 1000:
+                    metrics['assessment_score'] = 60.0
+                elif word_count > 500:
+                    metrics['assessment_score'] = 50.0
+                else:
+                    metrics['assessment_score'] = 40.0
+                
+        except Exception as e:
+            # Fallback if calculation fails
+            metrics['assessment_score'] = 50.0
+            print(f"Warning: Assessment score calculation failed: {e}")
+    
         return metrics
     
     def query_institution(self, institution_id: str, question: str) -> Dict[str, Any]:
