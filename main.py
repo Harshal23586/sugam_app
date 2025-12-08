@@ -67,10 +67,38 @@ def main():
 
 def show_landing_page():
     """Display the clean landing page with authentication options"""
+
+    """Display the clean landing page with authentication options"""
     
-    # Main header and system overview
-    st.markdown('<h1 class="main-header">सुगम - SUGAM - Smart Unified Governance and Approval Management</h1>', unsafe_allow_html=True)
-    st.markdown('<h3 class="sub-header">UGC & AICTE - Institutional Performance Tracking & Decision Support</h3>', unsafe_allow_html=True)
+    # Add custom CSS for logo display
+    st.markdown("""
+    <style>
+    .logo-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    .logo-image {
+        max-height: 120px;
+        margin-right: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+     # Main header with logo
+    col1, col2 = st.columns([1, 4])
+    
+    with col1:
+        # Display logo - adjust the path to your logo file
+        try:
+            st.image("assets/logo.jpg", width=150)
+        except:
+            st.image("logo.jpg", width=150)  # Fallback if assets folder doesn't exist
+    
+    with col2:
+        st.markdown('<h1 class="main-header">सुगम - SUGAM - Smart Unified Governance and Approval Management</h1>', unsafe_allow_html=True)
+        st.markdown('<h3 class="sub-header">UGC & AICTE - Institutional Performance Tracking & Decision Support</h3>', unsafe_allow_html=True)
     
     # System overview from PDF report
     st.markdown("---")
@@ -322,3 +350,4 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
