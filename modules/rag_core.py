@@ -10,7 +10,6 @@ import hashlib
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import torch
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 class DocumentFormValidator:
     """RAG-based validator to compare document-extracted data with form-submitted data"""
