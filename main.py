@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 #from rag_core import create_rag_validation_dashboard
 from modules.rag_core import create_rag_validation_dashboard
+from modules.decision_tree_classifier import create_decision_tree_module
 #sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -331,6 +332,7 @@ def show_main_application(analyzer):
             "🤖 Intelligence Hub",
             "🔍 RAG Data Management",
             "🔍 Document-Form Validation",
+            "🌳 Decision Tree Classifier",
             "💾 Data Management",
             "📄 PDF Reports",
             "🌐 API Integration",
@@ -365,6 +367,9 @@ def show_main_application(analyzer):
     
     elif app_mode == "🔍 Document-Form Validation":
         create_rag_validation_dashboard(analyzer)
+
+    elif app_mode == "🌳 Decision Tree Classifier":
+        create_decision_tree_module(analyzer)
         
         # Display system information
         st.subheader("System Information")
@@ -387,6 +392,7 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
 
