@@ -4,7 +4,6 @@ import sys
 import os
 from datetime import datetime
 # Add project root to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Page configuration
 st.set_page_config(
@@ -13,6 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import modules
 from core.analyzer import InstitutionalAIAnalyzer
@@ -196,4 +196,5 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
+
 
