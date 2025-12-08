@@ -42,6 +42,8 @@ from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 #from modules.rag_core import InstitutionalRAGSystem
 from modules.rag_dashboard import create_rag_dashboard
+from modules.rag_core import DocumentFormValidator  # Instead of InstitutionalRAGSystem
+
 
 # ============================================================================
 # VALIDATION FUNCTIONS FOR ALL FORMS
@@ -967,4 +969,5 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
