@@ -30,7 +30,7 @@ from modules.pdf_reports import create_pdf_report_module
 from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
-from modules.rag_core import InstitutionalRAGSystem
+#from modules.rag_core import InstitutionalRAGSystem
 from modules.rag_dashboard import create_rag_dashboard
 
 def main():
@@ -387,6 +387,7 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
 
