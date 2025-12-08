@@ -944,8 +944,8 @@ def show_main_application(analyzer):
     elif app_mode == "📄 PDF Reports":
         create_pdf_report_module(analyzer)
     
-    elif app_mode == "🔍 RAG Dashboard":
-        create_rag_dashboard(analyzer)
+    elif app_mode == "🔍 Document-Form Validation":
+        create_rag_validation_dashboard(analyzer)
 
     elif app_mode == "🌳 Decision Tree Classifier":
         create_decision_tree_module(analyzer)
@@ -974,11 +974,3 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
