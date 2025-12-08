@@ -6,6 +6,29 @@ import plotly.graph_objects as go
 import plotly.express as px
 from io import BytesIO
 
+# Initialize PDF processor variables
+pdfplumber = None
+PyPDF2 = None
+PDF_PROCESSOR = None
+
+# Try to import PDF libraries with fallbacks
+try:
+    import pdfplumber as pdfplumber_module
+    pdfplumber = pdfplumber_module
+    PDF_PROCESSOR = "pdfplumber"
+    st.sidebar.info("✓ pdfplumber available")
+except ImportError:
+    st.sidebar.warning("pdfplumber not installed")
+
+try:
+    import PyPDF2 as PyPDF2_module
+    PyPDF2 = PyPDF2_module
+    if PDF_PROCESSOR is None:
+        PDF_PROCESSOR = "PyPDF2"
+    st.sidebar.info("✓ PyPDF2 available")
+except ImportError:
+    st.sidebar.warning("PyPDF2 not installed")
+
 
 def create_rag_dashboard(analyzer):
     """Main RAG Dashboard for document intelligence"""
