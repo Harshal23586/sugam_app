@@ -44,9 +44,21 @@ class SmartDocumentSplitter:
     
     def split_by_sections(self, text: str) -> List[Dict[str, Any]]:
         """Split document into logical sections"""
-        sections = []
-        current_section = ""
-        current_title = "Introduction"
+        #sections = []
+        #current_section = ""
+        #current_title = "Introduction"
+        lines = text.split('\n')
+        clean_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+        # Skip PDF annotations and URLs
+            if line.startswith('<</Type') or line.startswith('http'):
+                continue
+            clean_lines.append(line)
+    
+        text = '\n'.join(clean_lines)
         
         lines = text.split('\n')
         
