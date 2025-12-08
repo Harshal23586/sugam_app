@@ -48,135 +48,135 @@ class InstitutionalDecisionTreeClassifier:
     def trained(self):
         """Check if model is trained"""
         return st.session_state.get('dt_model_trained', False)
-    
+
     def prepare_data(self, feature_selection=None):
-    """Prepare data for decision tree training with optional feature selection"""
-    try:
-        df = self.analyzer.historical_data.copy()
+        """Prepare data for decision tree training with optional feature selection"""
+        try:
+            df = self.analyzer.historical_data.copy()
         
-        # Display data info
-        st.write(f"📊 Raw data shape: {df.shape}")
-        st.write(f"📊 Risk levels in data: {df['risk_level'].unique()}")
+            # Display data info
+            st.write(f"📊 Raw data shape: {df.shape}")
+            st.write(f"📊 Risk levels in data: {df['risk_level'].unique()}")
         
-        # Define all possible features - EXCLUDE performance_score as it's a composite
-        all_features = [
-            'student_faculty_ratio',
-            'phd_faculty_ratio',
-            'research_publications',
-            'research_grants_amount',
-            'patents_filed',
-            'industry_collaborations',
-            'digital_infrastructure_score',
-            'library_volumes',
-            'laboratory_equipment_score',
-            'financial_stability_score',
-            'compliance_score',
-            'administrative_efficiency',
-            'placement_rate',
-            'higher_education_rate',
-            'entrepreneurship_cell_score',
-            'community_projects',
-            'rural_outreach_score',
-            'inclusive_education_index',
-            # 'performance_score' REMOVED - it's a composite score that depends on other features
-        ]
+            # Define all possible features - EXCLUDE performance_score as it's a composite
+            all_features = [
+                'student_faculty_ratio',
+                'phd_faculty_ratio',
+                'research_publications',
+                'research_grants_amount',
+                'patents_filed',
+                'industry_collaborations',
+                'digital_infrastructure_score',
+                'library_volumes',
+                'laboratory_equipment_score',
+                'financial_stability_score',
+                'compliance_score',
+                'administrative_efficiency',
+                'placement_rate',
+                'higher_education_rate',
+                'entrepreneurship_cell_score',
+                'community_projects',
+                'rural_outreach_score',
+                'inclusive_education_index',
+                # 'performance_score' REMOVED - it's a composite score that depends on other features
+            ]
         
-        # Also exclude any other composite or derived features
-        derived_features_to_exclude = [
-            'performance_score',
-            'naac_grade',  # Often derived from multiple metrics
-            'nirf_ranking'  # Composite ranking
-        ]
+            # Also exclude any other composite or derived features
+            derived_features_to_exclude = [
+                'performance_score',
+                'naac_grade',  # Often derived from multiple metrics
+                'nirf_ranking'  # Composite ranking
+            ]
         
-        # Remove derived features from consideration
-        all_features = [f for f in all_features if f not in derived_features_to_exclude]
+            # Remove derived features from consideration
+            all_features = [f for f in all_features if f not in derived_features_to_exclude]
         
-        # Check which features actually exist in the data
-        available_features = []
-        for feature in all_features:
-            if feature in df.columns:
-                # Check if feature has non-null values
-                if df[feature].notna().sum() > 0:
-                    available_features.append(feature)
+            # Check which features actually exist in the data
+            available_features = []
+            for feature in all_features:
+                if feature in df.columns:
+                    # Check if feature has non-null values
+                    if df[feature].notna().sum() > 0:
+                        available_features.append(feature)
+                    else:
+                        st.warning(f"Feature '{feature}' has no valid values")
                 else:
-                    st.warning(f"Feature '{feature}' has no valid values")
-            else:
-                st.warning(f"Feature '{feature}' not found in data columns")
+                    st.warning(f"Feature '{feature}' not found in data columns")
         
-        # Apply feature selection if specified
-        if feature_selection and feature_selection != 'all':
-            if feature_selection == 'academic':
-                academic_features = ['student_faculty_ratio', 'phd_faculty_ratio', 
+            # Apply feature selection if specified
+            if feature_selection and feature_selection != 'all':
+                if feature_selection == 'academic':
+                    academic_features = ['student_faculty_ratio', 'phd_faculty_ratio', 
                                    'higher_education_rate']
-                selected_features = [f for f in available_features if f in academic_features]
-            elif feature_selection == 'research':
-                research_features = ['research_publications', 'research_grants_amount',
+                    selected_features = [f for f in available_features if f in academic_features]
+                elif feature_selection == 'research':
+                    research_features = ['research_publications', 'research_grants_amount',
                                    'patents_filed', 'industry_collaborations']
-                selected_features = [f for f in available_features if f in research_features]
-            elif feature_selection == 'infrastructure':
-                infra_features = ['digital_infrastructure_score', 'library_volumes',
+                    selected_features = [f for f in available_features if f in research_features]
+                elif feature_selection == 'infrastructure':
+                    infra_features = ['digital_infrastructure_score', 'library_volumes',
                                 'laboratory_equipment_score']
-                selected_features = [f for f in available_features if f in infra_features]
-            elif feature_selection == 'administrative':
-                admin_features = ['financial_stability_score', 'compliance_score',
+                    selected_features = [f for f in available_features if f in infra_features]
+                elif feature_selection == 'administrative':
+                    admin_features = ['financial_stability_score', 'compliance_score',
                                 'administrative_efficiency', 'placement_rate']
-                selected_features = [f for f in available_features if f in admin_features]
-            elif feature_selection == 'outreach':
-                outreach_features = ['entrepreneurship_cell_score', 'community_projects',
+                    selected_features = [f for f in available_features if f in admin_features]
+                elif feature_selection == 'outreach':
+                    outreach_features = ['entrepreneurship_cell_score', 'community_projects',
                                    'rural_outreach_score', 'inclusive_education_index']
-                selected_features = [f for f in available_features if f in outreach_features]
+                    selected_features = [f for f in available_features if f in outreach_features]
+                else:
+                    selected_features = available_features
             else:
                 selected_features = available_features
-        else:
-            selected_features = available_features
         
-        st.write(f"✅ Selected features: {len(selected_features)}")
-        st.write(f"📋 Features list: {selected_features}")
+            st.write(f"✅ Selected features: {len(selected_features)}")
+            st.write(f"📋 Features list: {selected_features}")
         
-        # Add warning about excluded composite features
-        composite_in_data = [f for f in derived_features_to_exclude if f in df.columns]
-        if composite_in_data:
-            st.info(f"ℹ️ Excluded composite/derived features: {composite_in_data}")
+            # Add warning about excluded composite features
+            composite_in_data = [f for f in derived_features_to_exclude if f in df.columns]
+            if composite_in_data:
+                st.info(f"ℹ️ Excluded composite/derived features: {composite_in_data}")
         
-        # Remove rows with missing values in target
-        df = df.dropna(subset=['risk_level'])
+            # Remove rows with missing values in target
+            df = df.dropna(subset=['risk_level'])
         
-        # Handle missing values in features
-        df_clean = df.copy()
-        missing_counts = {}
-        for feature in selected_features:
-            missing = df_clean[feature].isna().sum()
-            if missing > 0:
-                missing_counts[feature] = missing
-                # Fill with median for numerical features
-                df_clean[feature] = df_clean[feature].fillna(df_clean[feature].median())
+            # Handle missing values in features
+            df_clean = df.copy()
+            missing_counts = {}
+            for feature in selected_features:
+                missing = df_clean[feature].isna().sum()
+                if missing > 0:
+                    missing_counts[feature] = missing
+                    # Fill with median for numerical features
+                    df_clean[feature] = df_clean[feature].fillna(df_clean[feature].median())
         
-        if missing_counts:
-            st.warning(f"Missing values filled: {missing_counts}")
+            if missing_counts:
+                st.warning(f"Missing values filled: {missing_counts}")
         
-        # Encode target variable
-        df_clean['risk_level_encoded'] = self.label_encoder.fit_transform(df_clean['risk_level'])
+            # Encode target variable
+            df_clean['risk_level_encoded'] = self.label_encoder.fit_transform(df_clean['risk_level'])
         
-        # Store features
-        self.features = selected_features
+            # Store features
+            self.features = selected_features
         
-        st.write(f"📊 Clean data shape: {df_clean.shape}")
-        st.write(f"🎯 Classes: {self.label_encoder.classes_}")
+            st.write(f"📊 Clean data shape: {df_clean.shape}")
+            st.write(f"🎯 Classes: {self.label_encoder.classes_}")
         
-        # Show class distribution
-        class_dist = df_clean['risk_level'].value_counts()
-        st.write(f"📈 Class distribution:")
-        for cls, count in class_dist.items():
-            percentage = (count / len(df_clean)) * 100
-            st.write(f"   - {cls}: {count} ({percentage:.1f}%)")
+            # Show class distribution
+            class_dist = df_clean['risk_level'].value_counts()
+            st.write(f"📈 Class distribution:")
+            for cls, count in class_dist.items():
+                percentage = (count / len(df_clean)) * 100
+                st.write(f"   - {cls}: {count} ({percentage:.1f}%)")
         
-        return df_clean[selected_features], df_clean['risk_level_encoded']
+            return df_clean[selected_features], df_clean['risk_level_encoded']
         
-    except Exception as e:
-        st.error(f"❌ Error preparing data: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
-        return None, None
+        except Exception as e:
+            st.error(f"❌ Error preparing data: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
+            return None, None
     
     def train_model(self, max_depth=None, min_samples_split=2, min_samples_leaf=1, 
                    max_features=None, criterion='gini', test_size=0.2, feature_selection=None,
