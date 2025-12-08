@@ -29,7 +29,16 @@ from modules.rag_dashboard import create_rag_dashboard
 
 # FIXED: Import only the function that actually exists in rag_core.py
 # This imports the DocumentFormValidator and create_rag_validation_dashboard functions
-from modules.rag_core import create_rag_validation_dashboard
+try:
+    from modules.rag_core import create_rag_validation_dashboard
+    RAG_VALIDATION_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ RAG Validation module not available: {str(e)}")
+    RAG_VALIDATION_AVAILABLE = False
+    
+    # Create a dummy function as fallback
+    def create_rag_validation_dashboard(analyzer):
+        st.error("RAG Validation module is not available. Please check the module configuration.")
 
 # Page configuration
 st.set_page_config(
@@ -965,6 +974,7 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
 
