@@ -1,4 +1,4 @@
-# main.py
+# main.py - Complete corrected import section
 import streamlit as st
 import sys
 import os
@@ -12,24 +12,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 import warnings
 warnings.filterwarnings('ignore')
-#from rag_core import create_rag_validation_dashboard
-#from modules.rag_core import create_rag_validation_dashboard
+
+# Corrected imports - remove problematic ones, add needed ones
 from modules.decision_tree_classifier import create_decision_tree_module
-#sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-
-# Add project root to path
-
-# Page configuration
-st.set_page_config(
-    page_title="SUGAM - Smart Unified Governance and Approval Management",
-    page_icon="assets/logo.jpg",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Import modules
 from core.analyzer import InstitutionalAIAnalyzer
 from modules.dashboard import create_performance_dashboard
 from modules.document_analysis import create_document_analysis_module
@@ -40,11 +25,20 @@ from modules.pdf_reports import create_pdf_report_module
 from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
-#from modules.rag_core import InstitutionalRAGSystem
 from modules.rag_dashboard import create_rag_dashboard
-from modules.rag_core import DocumentFormValidator  # Instead of InstitutionalRAGSystem
+
+# FIXED: Import only the function that actually exists in rag_core.py
+# This imports the DocumentFormValidator and create_rag_validation_dashboard functions
 from modules.rag_core import create_rag_validation_dashboard
 
+# Page configuration
+st.set_page_config(
+    page_title="SUGAM - Smart Unified Governance and Approval Management",
+    page_icon="assets/logo.jpg",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 # ============================================================================
@@ -971,6 +965,7 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
 
