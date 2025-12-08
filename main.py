@@ -196,12 +196,3 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
