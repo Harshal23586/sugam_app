@@ -19,8 +19,19 @@ class InstitutionalRAGSystem:
         self.embedding_model = None
         self.document_store = {}
         self.documents = []
+        self.document_index = {}
         self.validator = DocumentFormValidator()  # Reuse the existing validator
         self.initialize_embeddings()
+
+    def __getattr__(self, name):
+        """Handle missing attributes gracefully"""
+        if name == 'document_index':
+            # Return empty dict if document_index doesn't exist
+            return self.__dict__.get('document_index', {})
+        elif name == 'documents':
+            # Return empty list if documents doesn't exist
+            return self.__dict__.get('documents', [])
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
     
     def initialize_embeddings(self):
         """Initialize embedding model"""
