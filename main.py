@@ -356,7 +356,7 @@ col1, col2 = st.columns([1, 4])
 with col1:
     # Display logo (make sure logo.jpg is in the same directory as your app.py)
     try:
-        st.image("logo.jpg", width=200)
+        st.image("assets/logo.jpg", width=200)
     except FileNotFoundError:
         st.warning("Logo file not found. Please ensure logo.jpg is in the root directory.")
         
@@ -7569,3 +7569,4 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
+
