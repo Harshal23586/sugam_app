@@ -627,6 +627,15 @@ def create_decision_tree_module(analyzer):
                 st.pyplot(fig)
             else:
                 st.warning("Not enough numeric features for correlation analysis")
+
+        # Train button
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+             train_button = st.button("🚀 Start Training", 
+                                    type="primary", 
+                                    use_container_width=True,
+                                    help="Click to train the decision tree model with the configured parameters")
         
         if train_button:
             with st.spinner("Training decision tree model. This may take a moment..."):
