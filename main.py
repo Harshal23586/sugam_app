@@ -4,7 +4,9 @@ import sys
 import os
 from datetime import datetime
 #from rag_core import create_rag_validation_dashboard
-from modules.rag_core import InstitutionalRAGSystem, create_rag_validation_dashboard
+#from modules.rag_core import InstitutionalRAGSystem, create_rag_validation_dashboard
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 # Add project root to path
 
@@ -385,6 +387,7 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
 
