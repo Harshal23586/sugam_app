@@ -66,10 +66,7 @@ def main():
     show_landing_page()
 
 def show_landing_page():
-    """Display the clean landing page with authentication options"""
 
-    """Display the clean landing page with authentication options"""
-    
     # Add custom CSS for logo display
     st.markdown("""
     <style>
@@ -350,4 +347,5 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
