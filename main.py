@@ -26,6 +26,7 @@ from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 from modules.rag_dashboard import create_rag_dashboard
+from modules.rag_validation import create_rag_validation_dashboard
 
 # FIXED: Import only the function that actually exists in rag_core.py
 # This imports the DocumentFormValidator and create_rag_validation_dashboard functions
@@ -974,3 +975,4 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
