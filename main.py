@@ -43,6 +43,8 @@ from institution.dashboard import create_institution_dashboard
 #from modules.rag_core import InstitutionalRAGSystem
 from modules.rag_dashboard import create_rag_dashboard
 from modules.rag_core import DocumentFormValidator  # Instead of InstitutionalRAGSystem
+from modules.rag_core import create_rag_validation_dashboard
+
 
 
 # ============================================================================
@@ -969,5 +971,6 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
