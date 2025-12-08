@@ -3,7 +3,7 @@ import streamlit as st
 import sys
 import os
 from datetime import datetime
-from rag_score import create_rag_validation_dashboard
+from rag_core import create_rag_validation_dashboard
 
 # Add project root to path
 
@@ -384,4 +384,5 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
