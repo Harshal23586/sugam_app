@@ -34,10 +34,11 @@ def main():
         st.session_state.institution_user = None
     if 'user_role' not in st.session_state:
         st.session_state.user_role = None
+    if 'ugc_aicte_user' not in st.session_state:
+        st.session_state.ugc_aicte_user = None
     
-    # Check if user is logged in (either institution or UGC/AICTE)
+    # Check if institution user is logged in (using our simple auth)
     if st.session_state.institution_user is not None:
-        # Institution user is logged in
         try:
             analyzer = InstitutionalAIAnalyzer()
             create_institution_dashboard(analyzer, st.session_state.institution_user)
@@ -48,46 +49,32 @@ def main():
             return
         except Exception as e:
             st.error(f"❌ System initialization error: {str(e)}")
+            # If error occurs, clear session and show landing page
+            st.session_state.institution_user = None
+            st.session_state.user_role = None
     
-    # UGC/AICTE user authentication check
-    if 'ugc_aicte_user' not in st.session_state:
-        st.session_state.ugc_aicte_user = None
-    
+    # Check if UGC/AICTE user is logged in
     if st.session_state.ugc_aicte_user is not None:
-        # UGC/AICTE user is logged in
         try:
             analyzer = InstitutionalAIAnalyzer()
             show_main_application(analyzer)
             return
         except Exception as e:
             st.error(f"❌ System initialization error: {str(e)}")
+            st.session_state.ugc_aicte_user = None
+            st.session_state.user_role = None
     
     # LANDING PAGE - No dashboard data shown here
     show_landing_page()
 
 def show_landing_page():
-
-    # Add custom CSS for logo display
-    st.markdown("""
-    <style>
-    .logo-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 20px;
-    }
-    .logo-image {
-        max-height: 120px;
-        margin-right: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    """Display the clean landing page with authentication options"""
     
-     # Main header with logo
+    # Main header with logo
     col1, col2 = st.columns([1, 4])
     
     with col1:
-        # Display logo - adjust the path to your logo file
+        # Display logo with 200px width
         try:
             st.image("assets/logo.jpg", width=200)
         except:
@@ -347,6 +334,3 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
-
-
-
