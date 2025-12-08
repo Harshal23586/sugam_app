@@ -8,7 +8,7 @@ from datetime import datetime
 # Page configuration
 st.set_page_config(
     page_title="SUGAM - Smart Unified Governance and Approval Management",
-    page_icon="assets/logo.jpg",
+    page_icon="logo.jpg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -196,6 +196,7 @@ def main():
     """.format(datetime.now().strftime("%Y-%m-%d %H:%M")), unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
+
 
 
 
