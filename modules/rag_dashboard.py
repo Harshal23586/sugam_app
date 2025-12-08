@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
+from io import BytesIO
 
 def create_rag_dashboard(analyzer):
     """Main RAG Dashboard for document intelligence"""
@@ -303,6 +304,58 @@ def _performance_insights_tab(analyzer):
         
         for insight in insights:
             st.write(f"- {insight}")
+
+def process_pdf_document(uploaded_file, analyzer):
+    """Process uploaded PDF file"""
+    
+    # Read the file as bytes
+    pdf_bytes = uploaded_file.read()
+    
+    # Try pdfplumber first (better for text extraction)
+    text = ""
+    try:
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+    except Exception as e:
+        st.warning(f"pdfplumber failed: {e}. Trying PyPDF2...")
+        try:
+            pdf_file = BytesIO(pdf_bytes)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        except Exception as e2:
+            st.error(f"Both PDF parsers failed: {e2}")
+            return None
+    
+    if not text.strip():
+        st.error("No text could be extracted from the PDF")
+        return None
+    
+    return text
+
+# In your document processing tab:
+if uploaded_file is not None:
+    # Extract text from PDF
+    content = process_pdf_document(uploaded_file, analyzer)
+    
+    if content:
+        st.text_area("Extracted Text Preview", content[:2000], height=300)
+        
+        metadata = {
+            'document_type': 'NAAC_SSR',
+            'institution_id': st.text_input("Institution ID", "GHRIEM_Jalgaon"),
+            'year': st.number_input("Report Year", min_value=2000, max_value=2024, value=2019)
+        }
+        
+        if st.button("Process Document"):
+            with st.spinner("Processing document..."):
+                result = analyzer.rag_system.process_institutional_document(content, metadata)
+                st.success(f"Document processed! Found {result.get('total_sections', 0)} sections.")
 
 def _system_configuration_tab(analyzer):
     """RAG system configuration"""
