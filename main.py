@@ -26,7 +26,7 @@ from modules.system_settings import create_system_settings
 from institution.auth import create_institution_login
 from institution.dashboard import create_institution_dashboard
 from modules.rag_dashboard import create_rag_dashboard
-from modules.rag_dashboard import create_rag_validation_dashboard
+#from modules.rag_dashboard import create_rag_validation_dashboard
 from modules.rag_validation import create_rag_validation_dashboard
 
 
@@ -977,5 +977,6 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
