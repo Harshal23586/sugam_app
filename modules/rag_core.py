@@ -18,6 +18,7 @@ class InstitutionalRAGSystem:
         self.analyzer = analyzer
         self.embedding_model = None
         self.document_store = {}
+        self.documents = []
         self.validator = DocumentFormValidator()  # Reuse the existing validator
         self.initialize_embeddings()
     
