@@ -89,9 +89,9 @@ def show_landing_page():
     with col1:
         # Display logo - adjust the path to your logo file
         try:
-            st.image("assets/logo.jpg", width=150)
+            st.image("assets/logo.jpg", width=200)
         except:
-            st.image("logo.jpg", width=150)  # Fallback if assets folder doesn't exist
+            st.image("logo.jpg", width=200)  # Fallback if assets folder doesn't exist
     
     with col2:
         st.markdown('<h1 class="main-header">सुगम - SUGAM - Smart Unified Governance and Approval Management</h1>', unsafe_allow_html=True)
@@ -347,5 +347,6 @@ def show_main_application(analyzer):
 
 if __name__ == "__main__":
     main()
+
 
 
