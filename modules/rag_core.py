@@ -44,55 +44,44 @@ class SmartDocumentSplitter:
     
     def split_by_sections(self, text: str) -> List[Dict[str, Any]]:
         """Split document into logical sections"""
-        #sections = []
-        #current_section = ""
-        #current_title = "Introduction"
-        lines = text.split('\n')
-        clean_lines = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-        # Skip PDF annotations and URLs
-            if line.startswith('<</Type') or line.startswith('http'):
-                continue
-            clean_lines.append(line)
+        if not text or not text.strip():
+            return []
     
-        text = '\n'.join(clean_lines)
-        
-        lines = text.split('\n')
-        
+        sections = []
+        current_section = ""  # Initialize with empty string
+        current_title = "Introduction"
+    
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
         for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            
             # Check if line starts a new section
             section_found = False
             for section_name, pattern in self.section_patterns.items():
                 if re.search(pattern, line, re.IGNORECASE):
+                    # Save previous section if it exists
                     if current_section:
                         sections.append({
                             'title': current_title,
-                            'content': current_section,
+                            'content': current_section.strip(),
                             'section_type': self._classify_section(current_title)
                         })
+                    # Start new section
                     current_section = line + " "
                     current_title = line
                     section_found = True
                     break
-            
+        
             if not section_found:
                 current_section += line + " "
-        
+    
         # Add the last section
-        if current_section:
+        if current_section.strip():
             sections.append({
                 'title': current_title,
-                'content': current_section,
+                'content': current_section.strip(),
                 'section_type': self._classify_section(current_title)
             })
-        
+    
         return sections
     
     def _classify_section(self, title: str) -> str:
