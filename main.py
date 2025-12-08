@@ -948,4 +948,22 @@ def show_main_application(analyzer):
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Database Records", len(analyzer.historical_data))
-        with
+        with col2:
+            st.metric("Unique Institutions", analyzer.historical_data['institution_id'].nunique())
+        with col3:
+            st.metric("Data Years", f"{analyzer.historical_data['year'].min()}-{analyzer.historical_data['year'].max()}")
+    
+    elif app_mode == "🔮 Performance Prediction (Logistic Regression)":
+        predict_performance_tab(analyzer)
+    
+    # Footer for main application
+    st.markdown("---")
+    st.markdown(f"""
+    <div style='text-align: center; color: #6c757d;'>
+    <p><strong>UGC/AICTE Institutional Analytics Platform</strong> | AI-Powered Decision Support System</p>
+    <p>Version 2.0 | For authorized use only | Data validation enabled | Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
