@@ -33,14 +33,38 @@ class SmartDocumentSplitter:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.section_patterns = {
-            'executive_summary': r'(Executive\s+Summary|Abstract|Overview)',
-            'methodology': r'(Methodology|Approach|Procedure)',
-            'results': r'(Results|Findings|Outcomes)',
-            'recommendations': r'(Recommendations|Suggestions|Conclusions)',
-            'financial': r'(Financial|Budget|Revenue|Expenditure)',
-            'academic': r'(Academic|Curriculum|Program|Course)',
-            'infrastructure': r'(Infrastructure|Facilities|Equipment)'
+            'executive_summary': r'^1\.\s*EXECUTIVE SUMMARY|^Executive Summary',
+            'profile': r'^2\.\s*PROFILE|^PROFILE',
+            'extended_profile': r'^3\.\s*Extended Profile',
+            'quality_indicator': r'^4\.\s*Quality Indicator Framework|^Criterion\s+\d+',
+            'criterion_1': r'^Criterion 1\s*-\s*Curricular Aspects',
+            'criterion_2': r'^Criterion 2\s*-\s*Teaching-learning and Evaluation',
+            'criterion_3': r'^Criterion 3\s*-\s*Research, Innovations and Extension',
+            'criterion_4': r'^Criterion 4\s*-\s*Infrastructure and Learning Resources',
+            'criterion_5': r'^Criterion 5\s*-\s*Student Support and Progression',
+            'criterion_6': r'^Criterion 6\s*-\s*Governance, Leadership and Management',
+            'criterion_7': r'^Criterion 7\s*-\s*Institutional Values and Best Practices',
+            'conclusion': r'^5\.\s*CONCLUSION|^CONCLUSION'
         }
+
+    def preprocess_text(self, text: str) -> str:
+        """Clean PDF text before processing"""
+        # Remove PDF annotation objects
+        text = re.sub(r'<</Type\s*/Annot.*?>>', '', text, flags=re.DOTALL)
+        
+        # Remove the garbled URL characters (� symbols)
+        text = re.sub(r'�[^�]*�', '', text)
+        
+        # Remove standalone URLs
+        text = re.sub(r'https?://\S+', '', text)
+        
+        # Remove PDF object markers
+        text = re.sub(r'\d+\s+\d+\s+obj.*?endobj', '', text, flags=re.DOTALL)
+        
+        # Remove excessive whitespace
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        
+        return text.strip()
     
     def split_by_sections(self, text: str) -> List[Dict[str, Any]]:
         """Split document into logical sections"""
