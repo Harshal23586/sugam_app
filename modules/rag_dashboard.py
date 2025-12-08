@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from io import BytesIO
 
+
 def create_rag_dashboard(analyzer):
     """Main RAG Dashboard for document intelligence"""
     
@@ -322,19 +323,29 @@ def _performance_insights_tab(analyzer):
 def process_pdf_document(uploaded_file, analyzer):
     """Process uploaded PDF file"""
     
+    if pdfplumber is None and PyPDF2 is None:
+        st.error("No PDF processing libraries installed. Please add 'pdfplumber' or 'PyPDF2' to requirements.txt")
+        return None
+    
     # Read the file as bytes
     pdf_bytes = uploaded_file.read()
-    
-    # Try pdfplumber first (better for text extraction)
     text = ""
-    try:
-        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-    except Exception as e:
-        st.warning(f"pdfplumber failed: {e}. Trying PyPDF2...")
+    
+    # Try pdfplumber first if available
+    if pdfplumber is not None:
+        try:
+            with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            if text.strip():
+                return text
+        except Exception as e:
+            st.warning(f"pdfplumber failed: {e}")
+    
+    # Fall back to PyPDF2 if available
+    if PyPDF2 is not None and not text.strip():
         try:
             pdf_file = BytesIO(pdf_bytes)
             pdf_reader = PyPDF2.PdfReader(pdf_file)
@@ -343,8 +354,7 @@ def process_pdf_document(uploaded_file, analyzer):
                 if page_text:
                     text += page_text + "\n"
         except Exception as e2:
-            st.error(f"Both PDF parsers failed: {e2}")
-            return None
+            st.error(f"PyPDF2 failed: {e2}")
     
     if not text.strip():
         st.error("No text could be extracted from the PDF")
