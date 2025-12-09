@@ -7,20 +7,20 @@ from datetime import datetime
 
 def sfr_drilldown(df):
 
-    # rename columns to consistent internal names
+    # Rename columns to safe internal names
     df = df.rename(columns={
-        "year": "year",
-        "institution_type": "type",
-        "institution_id": "institute",
-        "student_faculty_ratio": "sfr"
+    "year": "year",
+    "institution_type": "type",
+    "institution_id": "institute",
+    "student_faculty_ratio": "sfr"
     })
-
-    # initial state
+    
+    # Initialize drill state
     if "sfr_drill_level" not in st.session_state:
         st.session_state.sfr_drill_level = 0
         st.session_state.sfr_drill_path = []
 
-    # new drill order: Year → Type → Institute
+    # Drill structure based on your schema
     levels = [
         ("Year", ["year"]),
         ("Institute Type", ["type"]),
@@ -54,13 +54,10 @@ def sfr_drilldown(df):
 
     # Apply filters from drill path
     filtered = df.copy()
-
     for i, selected_val in enumerate(st.session_state.sfr_drill_path):
         filter_col = levels[i][1][0]
-        filtered = filtered[filtered[filter_col] == selected_val]
+        filtered = filtered[filter_col] == selected_val
         df = df[df[filter_col] == selected_val]
-
-    df = filtered
 
     # Aggregate (mean SFR)
     agg = df.groupby(group_cols).agg(
@@ -432,6 +429,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
