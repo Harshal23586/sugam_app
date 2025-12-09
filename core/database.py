@@ -300,8 +300,11 @@ def calculate_performance_score(metrics):
     score += financial_score * 0.10
     
     # Placement Rate
-    placement_score = metrics.get('placement_rate', 70) / 10
-    score += placement_score * 0.10
+    placement_rate = metrics.get("placement_rate", 0)
+    if placement_rate > 1:   # means user entered 80 instead of 0.80
+        placement_rate = placement_rate / 100
+
+    placement_score = placement_rate * 10
     
     # Community Engagement
     community_score = min(10, metrics.get('community_engagement', 0) / 1.5)
@@ -470,3 +473,4 @@ def initialize_system_tables(conn):
     """)
     
     conn.commit()
+
