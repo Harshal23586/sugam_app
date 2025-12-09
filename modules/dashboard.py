@@ -9,11 +9,11 @@ def sfr_drilldown(df):
 
     # Rename columns to safe internal names
     df = df.rename(columns={
-    "year": "year",
-    "institution_type": "type",
-    "institution_id": "institute",
-    "student_faculty_ratio": "sfr"
-    })
+        "year": "year",
+        "institution_type": "type",
+        "institution_id": "institute",
+        "student_faculty_ratio": "sfr"
+        })
     
     # Initialize drill state
     if "sfr_drill_level" not in st.session_state:
@@ -439,6 +439,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
