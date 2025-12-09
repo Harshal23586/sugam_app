@@ -186,8 +186,9 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
         create_performance_insights(analyzer, user, institution_performance)
 
     # Tab 8: SFR Drill Down (New)
-    with institution_tabs[6]:
-        sfr_drilldown(analyzer.historical_data)
+    with institution_tabs[7]:
+        st.subheader("Student–Faculty Ratio Drilldown")
+        sfr_drilldown(historical_data)
         
 
 def get_institution_performance_data(analyzer: InstitutionalAIAnalyzer, institution_id: str) -> Optional[Dict]:
@@ -631,6 +632,7 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
 
