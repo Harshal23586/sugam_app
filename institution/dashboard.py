@@ -153,7 +153,8 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
         "📊 My Submissions",
         "📋 Requirements Guide",
         "🔄 Approval Workflow",
-        "📈 Performance Insights"
+        "📈 Performance Insights",
+        "📊 SFR Drill Down"
     ])
     
     # Tab 1: Document Upload
@@ -630,6 +631,7 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
 
