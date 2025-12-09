@@ -246,14 +246,47 @@ def create_performance_dashboard(analyzer):
             from core.database import calculate_performance_score
             
             metrics_dict = {
-                'naac_grade': naac_score,
-                'nirf_ranking': nirf_rank,
-                'student_faculty_ratio': student_faculty_ratio,
-                'placement_rate': placement_rate,
-                'research_publications': research_publications,
-                'digital_infrastructure': digital_infrastructure,
-                'financial_stability': 7.5,
-                'community_engagement': 5
+                # NAAC numeric conversion (A++=4.0 ... C=1.0)
+                "naac_grade": naac_score,
+
+                # NIRF Ranking (None if invalid)
+                "nirf_ranking": nirf_ranking if nirf_ranking and nirf_ranking <= 200 else None,
+
+                # Faculty ratios
+                "student_faculty_ratio": student_faculty_ratio,
+                "phd_faculty_ratio": phd_faculty_ratio,
+
+                # Publications, faculty count, pubs/faculty
+                "research_publications": research_publications,
+                "faculty_count": faculty_count,
+                "publications_per_faculty": (
+                    research_publications / faculty_count
+                    if faculty_count and faculty_count > 0 else 0
+                ),
+
+                # Research grants
+                "research_grants_amount": research_grants_amount,
+
+                # Patents
+                "patents_filed": patents_filed,
+
+                # Infrastructure
+                "digital_infrastructure_score": digital_infrastructure_score,
+                "library_volumes": library_volumes,
+                "campus_area": campus_area,
+
+                # Finance
+                "financial_stability_score": financial_stability_score,
+                "annual_budget": annual_budget,
+                "research_investment": research_investment,
+
+                # Placement normalization
+                "placement_rate": (
+                    placement_rate / 100 if placement_rate > 1 else placement_rate
+                ),
+
+                # Community engagement
+                "community_projects": community_projects or 0
             }
             
             score = calculate_performance_score(metrics_dict)
@@ -299,4 +332,5 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
