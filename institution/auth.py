@@ -195,6 +195,37 @@ def create_institution_login(analyzer):
                     for error in validation_result["errors"]:
                         st.error(error)
 
+def validate_contact(phone):
+    if not phone:
+        return False, "Phone number is required."
+
+    # Remove spaces
+    phone = phone.strip()
+
+    # Allow +91 at start
+    if phone.startswith("+91"):
+        phone = phone[3:]
+
+    # Allow leading zero
+    if phone.startswith("0"):
+        phone = contact[1:]
+
+    if not phone.isdigit():
+        return False, "Contact number must contain digits only."
+
+    if len(phone) != 10:
+        return False, "Contact number must be exactly 10 digits."
+
+    return True, None
+
+
+if st.button("Submit"):
+    ok, msg = validate_contact(phone)
+    if not ok:
+        st.error(msg)
+    else:
+        st.success("Registration successful!")
+
 def get_available_institutions(analyzer):
     """
     Get list of institutions available for registration
@@ -316,3 +347,4 @@ if __name__ == "__main__":
     st.set_page_config(page_title="Institution Auth Test", layout="wide")
     analyzer = InstitutionalAIAnalyzer()
     create_institution_login(analyzer)
+
