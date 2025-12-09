@@ -668,6 +668,7 @@ def create_systematic_data_submission_form(analyzer, user):
                 min_value=0.0, max_value=100.0, value=75.0, step=1.0,
                 key="placement_rate_sys"
             )
+            placement_rate = placement_rate / 100
             
             higher_education_rate = st.number_input(
                 "Higher Education Progression Rate (%)",
@@ -865,3 +866,4 @@ if __name__ == "__main__":
     
     with tab2:
         create_systematic_data_submission_form(analyzer, dummy_user)
+
