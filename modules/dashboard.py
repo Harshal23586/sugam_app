@@ -54,10 +54,20 @@ def sfr_drilldown(df):
 
     # Apply filters from drill path
     filtered = df.copy()
+
     for i, selected_val in enumerate(st.session_state.sfr_drill_path):
         filter_col = levels[i][1][0]
-        filtered = filtered[filter_col] == selected_val
-        df = df[df[filter_col] == selected_val]
+    
+        # Convert year selection to numeric for matching
+        if filter_col == "year":
+            try:
+                selected_val = int(selected_val)
+            except:
+                pass
+
+        filtered = filtered[filtered[filter_col] == selected_val]
+
+    df = filtered
 
     # Aggregate (mean SFR)
     agg = df.groupby(group_cols).agg(
@@ -429,6 +439,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
