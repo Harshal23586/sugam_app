@@ -54,10 +54,12 @@ def sfr_drilldown(df):
 
     # Apply filters from drill path
     filtered = df.copy()
+
     for i, selected_val in enumerate(st.session_state.sfr_drill_path):
         filter_col = levels[i][1][0]
-        filtered = filtered[filter_col] == selected_val
-        df = df[df[filter_col] == selected_val]
+        filtered = filtered[filtered[filter_col] == selected_val]
+
+    df = filtered
 
     # Aggregate (mean SFR)
     agg = df.groupby(group_cols).agg(
@@ -207,7 +209,7 @@ def create_performance_dashboard(analyzer):
     
     # Top Performers
     st.subheader("🏆 Student–Faculty Ratio Drilldown")
-        sfr_drilldown(analyzer.historical_data)
+    sfr_drilldown(analyzer.historical_data)
 
     # Top Performers
     st.subheader("🏆 Top Performing Institutions")
@@ -429,6 +431,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
