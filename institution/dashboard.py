@@ -33,7 +33,7 @@ def sfr_drilldown(df):
 
     # Rename columns to safe internal names
     df = df.rename(columns={
-    "Year": "year",
+    "year": "year",
     "institution_type": "type",
     "institution_id": "institute",
     "student_faculty_ratio": "sfr"
@@ -632,6 +632,7 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
 
