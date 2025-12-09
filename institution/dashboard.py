@@ -33,12 +33,12 @@ def sfr_drilldown(df):
 
     # Rename columns to safe internal names
     df = df.rename(columns={
-        "Year": "year",
-        "Type of Institute": "type",
-        "Institute Code": "institute",
-        "Student Faculty Ratio": "sfr"
+    "Year": "year",
+    "institution_type": "type",
+    "institution_id": "institute",
+    "student_faculty_ratio": "sfr"
     })
-
+    
     # Initialize drill state
     if "sfr_drill_level" not in st.session_state:
         st.session_state.sfr_drill_level = 0
@@ -631,6 +631,7 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
 
