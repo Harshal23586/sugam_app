@@ -204,6 +204,7 @@ def create_performance_dashboard(analyzer):
                 ["A++", "A+", "A", "B++", "B+", "B", "C"],
                 index=2
             )
+            naac_score = {"A++":4.0, "A+":3.7, "A":3.4, "B++":3.1, "B+":2.8, "B":2.5, "C":2.0}[naac_grade]
             nirf_rank = st.number_input(
                 "NIRF Ranking",
                 min_value=1,
@@ -245,7 +246,7 @@ def create_performance_dashboard(analyzer):
             from core.database import calculate_performance_score
             
             metrics_dict = {
-                'naac_grade': naac_grade,
+                'naac_grade': naac_score,
                 'nirf_ranking': nirf_rank,
                 'student_faculty_ratio': student_faculty_ratio,
                 'placement_rate': placement_rate,
@@ -298,3 +299,4 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
