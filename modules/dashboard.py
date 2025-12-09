@@ -147,6 +147,24 @@ def create_performance_dashboard(analyzer):
     fig6.update_layout(yaxis_title="Institution", xaxis_title="Performance Score")
     st.plotly_chart(fig6, use_container_width=True)
 
+    # Top Performers
+    st.subheader("🏆 Top Performing Institutions")
+    
+    top_performers = current_year_data.nlargest(10, 'performance_score')[['institution_name', 'performance_score', 'naac_grade', 'placement_rate']]
+    
+    fig6 = px.bar(
+        top_performers,
+        x='performance_score',
+        y='institution_name',
+        orientation='h',
+        title="Top 10 Institutions",
+        color='performance_score',
+        color_continuous_scale='Viridis',
+        hover_data=['naac_grade', 'placement_rate']
+    )
+    fig6.update_layout(yaxis_title="Institution", xaxis_title="Performance Score")
+    st.plotly_chart(fig6, use_container_width=True)
+
     available_metrics = {
         "Performance Score": "performance_score",
         "Placement Rate (%)": "placement_rate",
@@ -349,6 +367,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
