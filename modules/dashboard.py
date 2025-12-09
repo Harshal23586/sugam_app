@@ -22,9 +22,9 @@ def sfr_drilldown(df):
 
     # Drill structure based on your schema
     levels = [
+        ("Year", ["year"]),
         ("Institute Type", ["type"]),
-        ("Institute Code", ["institute"]),
-        ("Year", ["year"])
+        ("Institute Code", ["institute"])
     ]
 
     level_label, group_cols = levels[st.session_state.sfr_drill_level]
@@ -431,6 +431,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
