@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Any
 
 # Import from project modules
 from core.analyzer import InstitutionalAIAnalyzer
+from institution.faculty import create_faculty_profile_tab
 from institution.forms import (
     create_institution_data_submission,
     create_systematic_data_submission_form
@@ -74,7 +75,8 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
     institution_tabs = st.tabs([
         "📤 Document Upload", 
         "📝 Basic Data Submission",
-        "🏛️ Systematic Data Form",   
+        "🏛️ Systematic Data Form",
+        "👨‍🏫 Faculty Profile",
         "📊 My Submissions",
         "📋 Requirements Guide",
         "🔄 Approval Workflow",
@@ -92,21 +94,25 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
     # Tab 3: Systematic Data Form
     with institution_tabs[2]:
         create_systematic_data_submission_form(analyzer, user)
-    
-    # Tab 4: My Submissions
+
+    # Tab 4: Faculty Profile (New)
     with institution_tabs[3]:
+        create_faculty_profile_tab(analyzer, user)
+    
+    # Tab 5: My Submissions
+    with institution_tabs[4]:
         create_institution_submissions_view(analyzer, user)
     
-    # Tab 5: Requirements Guide
-    with institution_tabs[4]:
+    # Tab 6: Requirements Guide
+    with institution_tabs[5]:
         create_institution_requirements_guide(analyzer)
     
-    # Tab 6: Approval Workflow
-    with institution_tabs[5]:
+    # Tab 7: Approval Workflow
+    with institution_tabs[6]:
         create_institution_approval_workflow(analyzer, user)
     
-    # Tab 7: Performance Insights (New)
-    with institution_tabs[6]:
+    # Tab 8: Performance Insights (New)
+    with institution_tabs[7]:
         create_performance_insights(analyzer, user, institution_performance)
         
 
@@ -551,4 +557,5 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
