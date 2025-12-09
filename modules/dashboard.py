@@ -206,10 +206,10 @@ def create_performance_dashboard(analyzer):
             hover_data=['institution_name'],
             title="Research vs Placement Analysis",
             color_discrete_map={
-                'Low Risk': '#2ecc71',
-                'Medium Risk': '#f39c12',
-                'High Risk': '#e74c3c',
-                'Critical Risk': '#c0392b'
+                'Low Risk': '#00E676',      # neon green
+                'Medium Risk': '#FFD600',   # bright yellow
+                'High Risk': '#FF3D00',     # neon orange-red
+                'Critical Risk': '#D500F9'  # neon purple
             }
         )
         fig5.update_layout(xaxis_title="Research Publications", yaxis_title="Placement Rate (%)")
@@ -439,6 +439,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
