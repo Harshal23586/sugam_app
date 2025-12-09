@@ -29,6 +29,82 @@ from institution.submissions import (
     create_institution_approval_workflow
 )
 
+def sfr_drilldown(df):
+
+    # Rename columns to safe internal names
+    df = df.rename(columns={
+        "Year": "year",
+        "Type of Institute": "type",
+        "Institute Code": "institute",
+        "Student Faculty Ratio": "sfr"
+    })
+
+    # Initialize drill state
+    if "sfr_drill_level" not in st.session_state:
+        st.session_state.sfr_drill_level = 0
+        st.session_state.sfr_drill_path = []
+
+    # Drill structure based on your schema
+    levels = [
+        ("Institute Type", ["type"]),
+        ("Institute Code", ["institute"]),
+        ("Year", ["year"])
+    ]
+
+    level_label, group_cols = levels[st.session_state.sfr_drill_level]
+
+    st.subheader(f"Student–Faculty Ratio Drilldown — {level_label}")
+
+    # Breadcrumbs
+    if st.session_state.sfr_drill_path:
+        breadcrumb = " > ".join([str(x) for x in st.session_state.sfr_drill_path])
+        st.markdown(f"**Path:** {breadcrumb}")
+    else:
+        st.markdown("**Path:** Top Level")
+
+    # Back + Reset buttons
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        if st.button("⬅ Back") and st.session_state.sfr_drill_level > 0:
+            st.session_state.sfr_drill_level -= 1
+            st.session_state.sfr_drill_path.pop()
+            st.experimental_rerun()
+
+    with c2:
+        if st.button("Reset"):
+            st.session_state.sfr_drill_level = 0
+            st.session_state.sfr_drill_path = []
+            st.experimental_rerun()
+
+    # Apply filters from drill path
+    filtered = df.copy()
+    for i, selected_val in enumerate(st.session_state.sfr_drill_path):
+        filter_col = levels[i][1][0]
+        filtered = filtered[filter_col] == selected_val
+        df = df[df[filter_col] == selected_val]
+
+    # Aggregate (mean SFR)
+    agg = df.groupby(group_cols).agg(
+        avg_sfr=('sfr', 'mean')
+    ).reset_index()
+
+    # Bar chart
+    x_col = group_cols[0]
+    st.bar_chart(agg.set_index(x_col)['avg_sfr'])
+
+    # Drill-down selectbox
+    options = ["-- None --"] + agg[x_col].astype(str).tolist()
+    choice = st.selectbox(f"Select {level_label} to drill into:", options)
+
+    if choice != "-- None --" and st.button("Drill"):
+        st.session_state.sfr_drill_path.append(choice)
+        if st.session_state.sfr_drill_level < len(levels) - 1:
+            st.session_state.sfr_drill_level += 1
+        st.experimental_rerun()
+
+    # Display table under the chart
+    st.dataframe(agg)
+
 def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
     """
     Main institution dashboard function
@@ -107,6 +183,11 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
     # Tab 7: Performance Insights (New)
     with institution_tabs[6]:
         create_performance_insights(analyzer, user, institution_performance)
+
+    # Tab 8: SFR Drill Down (New)
+    with institution_tabs[6]:
+        sfr_drilldown(analyzer)
+        
 
 def get_institution_performance_data(analyzer: InstitutionalAIAnalyzer, institution_id: str) -> Optional[Dict]:
     """
@@ -549,5 +630,6 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
