@@ -261,7 +261,6 @@ def create_institution_data_submission(analyzer, user):
                 
                 # Show success message
                 st.success("✅ Basic data submitted successfully!")
-                st.balloons()
                 
                 # Show submission summary
                 show_basic_submission_summary(
@@ -866,4 +865,5 @@ if __name__ == "__main__":
     
     with tab2:
         create_systematic_data_submission_form(analyzer, dummy_user)
+
 
