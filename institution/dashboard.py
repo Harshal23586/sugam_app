@@ -42,7 +42,7 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
         st.error("❌ No user data available. Please log in again.")
         return
     
-    st.header(f"🏛️ Institution Dashboard - {user.get('institution_name', 'Unknown')}")
+    st.header(f"🏛️ Institution Dashboard - {user.get('institution_name', 'institution_id')}") # Unknown
     
     # Display institution overview in a prominent card
     with st.container():
