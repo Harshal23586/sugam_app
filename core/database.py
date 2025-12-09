@@ -120,6 +120,8 @@ def load_or_generate_data(conn):
     try:
         # Try to load from database
         df = pd.read_sql('SELECT * FROM institutions', conn)
+        df['performance_score'] = df.apply(lambda row: calculate_performance_score(row.to_dict()), axis=1)
+
         if len(df) > 0:
             # Verify the loaded data matches 20×10 specification
             unique_institutions = df['institution_id'].nunique()
@@ -473,4 +475,5 @@ def initialize_system_tables(conn):
     """)
     
     conn.commit()
+
 
