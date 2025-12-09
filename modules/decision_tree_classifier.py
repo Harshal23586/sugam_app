@@ -649,7 +649,6 @@ def create_decision_tree_module(analyzer):
                                          cross_validation=cross_validation,
                                          cv_folds=cv_folds):
                     st.success("✅ Model trained successfully!")
-                    st.balloons()
                     
                     # Show quick results
                     model_info = classifier.get_model_info()
