@@ -68,13 +68,13 @@ def sfr_drilldown(df):
         if st.button("⬅ Back") and st.session_state.sfr_drill_level > 0:
             st.session_state.sfr_drill_level -= 1
             st.session_state.sfr_drill_path.pop()
-            st.experimental_rerun()
+            st.rerun()
 
     with c2:
         if st.button("Reset"):
             st.session_state.sfr_drill_level = 0
             st.session_state.sfr_drill_path = []
-            st.experimental_rerun()
+            st.rerun()
 
     # Apply filters from drill path
     filtered = df.copy()
@@ -100,7 +100,7 @@ def sfr_drilldown(df):
         st.session_state.sfr_drill_path.append(choice)
         if st.session_state.sfr_drill_level < len(levels) - 1:
             st.session_state.sfr_drill_level += 1
-        st.experimental_rerun()
+        st.rerun()
 
     # Display table under the chart
     st.dataframe(agg)
@@ -632,6 +632,7 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
 
 
 
