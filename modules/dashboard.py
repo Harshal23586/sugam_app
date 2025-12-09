@@ -5,6 +5,82 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+def sfr_drilldown(df):
+
+    # Rename columns to safe internal names
+    df = df.rename(columns={
+    "year": "year",
+    "institution_type": "type",
+    "institution_id": "institute",
+    "student_faculty_ratio": "sfr"
+    })
+    
+    # Initialize drill state
+    if "sfr_drill_level" not in st.session_state:
+        st.session_state.sfr_drill_level = 0
+        st.session_state.sfr_drill_path = []
+
+    # Drill structure based on your schema
+    levels = [
+        ("Institute Type", ["type"]),
+        ("Institute Code", ["institute"]),
+        ("Year", ["year"])
+    ]
+
+    level_label, group_cols = levels[st.session_state.sfr_drill_level]
+
+    st.subheader(f"Student–Faculty Ratio Drilldown — {level_label}")
+
+    # Breadcrumbs
+    if st.session_state.sfr_drill_path:
+        breadcrumb = " > ".join([str(x) for x in st.session_state.sfr_drill_path])
+        st.markdown(f"**Path:** {breadcrumb}")
+    else:
+        st.markdown("**Path:** Top Level")
+
+    # Back + Reset buttons
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        if st.button("⬅ Back") and st.session_state.sfr_drill_level > 0:
+            st.session_state.sfr_drill_level -= 1
+            st.session_state.sfr_drill_path.pop()
+            st.rerun()
+
+    with c2:
+        if st.button("Reset"):
+            st.session_state.sfr_drill_level = 0
+            st.session_state.sfr_drill_path = []
+            st.rerun()
+
+    # Apply filters from drill path
+    filtered = df.copy()
+    for i, selected_val in enumerate(st.session_state.sfr_drill_path):
+        filter_col = levels[i][1][0]
+        filtered = filtered[filter_col] == selected_val
+        df = df[df[filter_col] == selected_val]
+
+    # Aggregate (mean SFR)
+    agg = df.groupby(group_cols).agg(
+        avg_sfr=('sfr', 'mean')
+    ).reset_index()
+
+    # Bar chart
+    x_col = group_cols[0]
+    st.bar_chart(agg.set_index(x_col)['avg_sfr'])
+
+    # Drill-down selectbox
+    options = ["-- None --"] + agg[x_col].astype(str).tolist()
+    choice = st.selectbox(f"Select {level_label} to drill into:", options)
+
+    if choice != "-- None --" and st.button("Drill"):
+        st.session_state.sfr_drill_path.append(choice)
+        if st.session_state.sfr_drill_level < len(levels) - 1:
+            st.session_state.sfr_drill_level += 1
+        st.rerun()
+
+    # Display table under the chart
+    st.dataframe(agg)
+
 def create_performance_dashboard(analyzer):
     st.header("📊 Institutional Performance Analytics Dashboard")
     
@@ -130,22 +206,8 @@ def create_performance_dashboard(analyzer):
         st.plotly_chart(fig5, use_container_width=True)
     
     # Top Performers
-    st.subheader("🏆 Top Performing Institutions")
-    
-    top_performers = current_year_data.nlargest(10, 'performance_score')[['institution_name', 'performance_score', 'naac_grade', 'placement_rate']]
-    
-    fig6 = px.bar(
-        top_performers,
-        x='performance_score',
-        y='institution_name',
-        orientation='h',
-        title="Top 10 Institutions",
-        color='performance_score',
-        color_continuous_scale='Viridis',
-        hover_data=['naac_grade', 'placement_rate']
-    )
-    fig6.update_layout(yaxis_title="Institution", xaxis_title="Performance Score")
-    st.plotly_chart(fig6, use_container_width=True)
+    st.subheader("🏆 Student–Faculty Ratio Drilldown")
+        sfr_drilldown(analyzer.historical_data)
 
     # Top Performers
     st.subheader("🏆 Top Performing Institutions")
@@ -367,6 +429,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
