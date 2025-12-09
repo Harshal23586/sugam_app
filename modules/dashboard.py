@@ -146,6 +146,21 @@ def create_performance_dashboard(analyzer):
     )
     fig6.update_layout(yaxis_title="Institution", xaxis_title="Performance Score")
     st.plotly_chart(fig6, use_container_width=True)
+
+    available_metrics = {
+        "Performance Score": "performance_score",
+        "Placement Rate (%)": "placement_rate",
+        "Research Publications": "research_publications",
+        "Student-Faculty Ratio": "student_faculty_ratio",
+        "Financial Stability Score": "financial_stability_score",
+        "NAAC Grade (Numeric)": "naac_grade",
+        "NIRF Ranking": "nirf_ranking",
+        "Digital Infrastructure Score": "digital_infrastructure_score",
+        "Research Grants Amount": "research_grants_amount",
+        "Patents Filed": "patents_filed",
+        "Campus Area": "campus_area",
+        "Library Volumes": "library_volumes",
+    }
     
     # Institution Comparison Tool
     st.subheader("🔍 Compare Institutions")
@@ -160,15 +175,21 @@ def create_performance_dashboard(analyzer):
     if selected_institutions:
         comparison_data = current_year_data[current_year_data['institution_name'].isin(selected_institutions)]
         
-        metrics = ['performance_score', 'placement_rate', 'research_publications']
+        selected_metrics = st.multiselect(
+            "Select parameters to compare:",
+            list(available_metrics.keys()),
+            default=["Performance Score", "Placement Rate (%)", "Research Publications"]
+        )
         
         fig7 = go.Figure()
         
-        for metric in metrics:
+        for metric_label in selected_metrics:
+            metric_col = available_metrics[metric_label]
+
             fig7.add_trace(go.Bar(
                 x=comparison_data['institution_name'],
-                y=comparison_data[metric],
-                name=metric.replace('_', ' ').title()
+                y=comparison_data[metric_col],
+                name=metric_label
             ))
         
         fig7.update_layout(
@@ -181,15 +202,11 @@ def create_performance_dashboard(analyzer):
         st.plotly_chart(fig7, use_container_width=True)
         
         # Detailed comparison table
-        comparison_cols = [
-            'institution_name', 'performance_score', 'naac_grade', 'nirf_ranking',
-            'placement_rate', 'research_publications', 'student_faculty_ratio',
-            'financial_stability_score', 'risk_level'
-        ]
-        
+        comparison_cols = ["institution_name"] + [available_metrics[m] for m in selected_metrics]
+
         st.dataframe(
             comparison_data[comparison_cols].set_index('institution_name'),
-            use_container_width=True
+            use_container_width=True    
         )
     
     # Performance Score Calculator
@@ -332,5 +349,6 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
