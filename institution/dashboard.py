@@ -550,3 +550,4 @@ if __name__ == "__main__":
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
 
+
