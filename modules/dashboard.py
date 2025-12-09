@@ -7,26 +7,26 @@ from datetime import datetime
 
 def sfr_drilldown(df):
 
-    # Rename columns to safe internal names
+    # rename columns to consistent internal names
     df = df.rename(columns={
         "year": "year",
         "institution_type": "type",
         "institution_id": "institute",
         "student_faculty_ratio": "sfr"
     })
-    
-    # Initialize drill state
+
+    # initial state
     if "sfr_drill_level" not in st.session_state:
         st.session_state.sfr_drill_level = 0
         st.session_state.sfr_drill_path = []
 
-    # Drill structure based on your schema
+    # new drill order: Year → Type → Institute
     levels = [
         ("Year", ["year"]),
         ("Institute Type", ["type"]),
         ("Institute Code", ["institute"])
     ]
-
+    
     level_label, group_cols = levels[st.session_state.sfr_drill_level]
 
     st.subheader(f"Student–Faculty Ratio Drilldown — {level_label}")
@@ -431,6 +431,7 @@ def create_performance_dashboard(analyzer):
             file_name="institutions_all_years.csv",
             mime="text/csv"
         )
+
 
 
 
