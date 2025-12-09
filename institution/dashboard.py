@@ -49,7 +49,7 @@ def create_institution_dashboard(analyzer: InstitutionalAIAnalyzer, user: Dict):
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Institution ID", user.get('institution_id', 'HRK'))
+            st.metric("Institution ID", user.get('institution_id', 'N/A'))
         with col2:
             st.metric("Contact Person", user.get('contact_person', 'N/A'))
         with col3:
@@ -549,3 +549,4 @@ if __name__ == "__main__":
     
     # Create dashboard
     create_institution_dashboard(analyzer, dummy_user)
+
